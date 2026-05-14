@@ -24,7 +24,7 @@ public class FunctionCallService {
      * Chat with tool calling support. Returns the final answer after potential tool invocations.
      */
     public String chatWithTools(String systemPrompt, String userMessage) {
-        if (!config.isEnabled() || toolRegistry.getAllHandlers().isEmpty()) {
+        if (config.isEnabled() || toolRegistry.getAllHandlers().isEmpty()) {
             return client.chat(systemPrompt, userMessage);
         }
 

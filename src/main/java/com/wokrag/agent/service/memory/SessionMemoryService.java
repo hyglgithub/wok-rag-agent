@@ -10,4 +10,8 @@ public interface SessionMemoryService {
     void clearSession(String sessionId);
     boolean sessionExists(String sessionId);
     void cleanupExpiredSessions();
+
+    default String getSummary(String sessionId) {
+        return null;
+    }
 }

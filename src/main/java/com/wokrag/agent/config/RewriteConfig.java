@@ -8,6 +8,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "rewrite")
 public class RewriteConfig {
-    private boolean enabled = true;
+    private boolean enabled = false;
     private String model = "Qwen/Qwen2.5-7B-Instruct";
 }

@@ -34,10 +34,10 @@ rag:
 
 # Memory Configuration
 memory:
-  strategy: sliding_window
   max-rounds: 5
   token-threshold: 3000
   session-timeout-minutes: 30
+  summary-model: Qwen/Qwen2.5-7B-Instruct
 
 # Query Rewriting Configuration
 rewrite:

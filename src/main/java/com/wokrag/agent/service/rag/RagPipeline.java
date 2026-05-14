@@ -63,8 +63,9 @@ public class RagPipeline {
 
             // Step 4: Generate answer with Function Call support
             String systemPrompt = promptService.getSystemPrompt();
-            if (!history.isEmpty()) {
-                systemPrompt = buildSystemPromptWithHistory(history, systemPrompt);
+            String summary = sessionMemoryService.getSummary(sessionId);
+            if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
+                systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
             }
 
             String answer;
@@ -155,8 +156,9 @@ public class RagPipeline {
             List<Chunk> chunks = convertToChunks(searchResults);
 
             String systemPrompt = promptService.getSystemPrompt();
-            if (!history.isEmpty()) {
-                systemPrompt = buildSystemPromptWithHistory(history, systemPrompt);
+            String summary = sessionMemoryService.getSummary(sessionId);
+            if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
+                systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
             }
 
             String userPrompt;
@@ -210,12 +212,18 @@ public class RagPipeline {
     }
 
     private String buildSystemPromptWithHistory(List<ChatMessage> history,
-                                                  String baseSystemPrompt) {
+                                                  String baseSystemPrompt,
+                                                  String summary) {
         StringBuilder sb = new StringBuilder(baseSystemPrompt);
-        sb.append("\n\n【对话历史】\n");
-        for (ChatMessage msg : history) {
-            String roleName = "user".equals(msg.getRole()) ? "用户" : "助手";
-            sb.append(roleName).append("：").append(msg.getContent()).append("\n");
+        if (summary != null && !summary.isEmpty()) {
+            sb.append("\n\n【对话背景摘要】\n").append(summary);
+        }
+        if (!history.isEmpty()) {
+            sb.append("\n\n【近期对话】\n");
+            for (ChatMessage msg : history) {
+                String roleName = "user".equals(msg.getRole()) ? "用户" : "助手";
+                sb.append(roleName).append("：").append(msg.getContent()).append("\n");
+            }
         }
         return sb.toString();
     }
