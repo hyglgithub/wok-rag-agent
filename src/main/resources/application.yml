@@ -31,3 +31,20 @@ rag:
   dense-recall-top-k: 20
   sparse-recall-top-k: 20
   rrf-k: 60
+
+# Memory Configuration
+memory:
+  strategy: sliding_window
+  max-rounds: 5
+  token-threshold: 3000
+  session-timeout-minutes: 30
+
+# Query Rewriting Configuration
+rewrite:
+  enabled: true
+  model: Qwen/Qwen2.5-7B-Instruct
+
+# Tool Calling Configuration
+tool:
+  enabled: true
+  model: Qwen/Qwen2.5-7B-Instruct

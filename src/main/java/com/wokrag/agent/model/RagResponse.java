@@ -8,6 +8,7 @@ import java.util.List;
 @NoArgsConstructor
 public class RagResponse {
     private String answer;
+    private String sessionId;
     private List<CitationInfo> citations;
 
     @Data
