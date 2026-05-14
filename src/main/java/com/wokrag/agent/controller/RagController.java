@@ -16,7 +16,8 @@ public class RagController {
 
     @PostMapping("/query")
     public ResponseEntity<RagResponse> query(@RequestBody QueryRequest request) {
-        RagResponse response = ragPipeline.execute(request.getQuestion());
+        RagResponse response = ragPipeline.execute(
+                request.getQuestion(), request.getSessionId());
         return ResponseEntity.ok(response);
     }
 
@@ -31,6 +32,7 @@ public class RagController {
     @Data
     public static class QueryRequest {
         private String question;
+        private String sessionId;
     }
 
     @Data
