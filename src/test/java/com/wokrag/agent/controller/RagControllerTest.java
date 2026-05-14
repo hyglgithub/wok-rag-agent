@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -31,12 +31,29 @@ class RagControllerTest {
         mockResponse.setAnswer("Test answer");
         mockResponse.setCitations(List.of());
 
-        when(ragPipeline.execute(anyString())).thenReturn(mockResponse);
+        when(ragPipeline.execute(anyString(), any())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/api/rag/query")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"question\": \"Test question\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.answer").value("Test answer"));
+    }
+
+    @Test
+    void testQueryEndpointWithSessionId() throws Exception {
+        RagResponse mockResponse = new RagResponse();
+        mockResponse.setAnswer("Test answer");
+        mockResponse.setSessionId("session-1");
+        mockResponse.setCitations(List.of());
+
+        when(ragPipeline.execute(anyString(), any())).thenReturn(mockResponse);
+
+        mockMvc.perform(post("/api/rag/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\": \"Test question\", \"sessionId\": \"session-1\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answer").value("Test answer"))
+                .andExpect(jsonPath("$.sessionId").value("session-1"));
     }
 }
