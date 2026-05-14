@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: wok-rag-agent
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+server:
+  port: 8080
+
+# SiliconFlow Configuration
+siliconflow:
+  api-key: ${SILICONFLOW_API_KEY}
+  base-url: https://api.siliconflow.cn/v1
+  embedding-model: Qwen/Qwen3-Embedding-8B
+  chat-model: Qwen/Qwen3-32B
+  reranker-model: BAAI/bge-reranker-v2-m3
+
+# Milvus Configuration
+milvus:
+  uri: http://localhost:19530
+  collection-name: customer_service_chunks
+  vector-dim: 4096
+
+# RAG Configuration
+rag:
+  chunk-size: 500
+  chunk-overlap: 50
+  top-k: 8
+  dense-recall-top-k: 20
+  sparse-recall-top-k: 20
+  rrf-k: 60
