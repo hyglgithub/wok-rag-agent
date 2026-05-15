@@ -57,22 +57,11 @@ Intent classification uses a hybrid approach: rule-based chitchat keywords (shor
 - **`SessionMemoryService`** — in-memory session store (`ConcurrentHashMap`). `SummaryMemoryService` implements token-threshold compression: when total tokens exceed `memory.tokenThreshold`, older messages are summarized via LLM and evicted, keeping only recent rounds.
 - **`FunctionCallService`** — 2-round tool calling: send tool definitions → execute returned calls → send results back to LLM.
 
-### Config Properties
-
-Seven `@ConfigurationProperties` classes under `config/`, all prefixed differently:
-- `siliconflow.*` — API key, base URL, model names
-- `milvus.*` — host, port, collection name, vector dimension
-- `rag.*` — chunk size/overlap, top-k, RRF parameters
-- `memory.*` — strategy, maxRounds, tokenThreshold, sessionTimeoutMinutes
-- `rewrite.*` — enabled flag, model name
-- `tool.*` — enabled flag, model name
-- `intent.*` — enabled flag, model name, confidenceThreshold
-
 ### Tool Calling Pattern
 
 Tools implement `ToolHandler` interface (`getDefinition()` + `execute()`), registered via `ToolRegistry` via `@PostConstruct`. Three tools registered: `SearchKnowledgeBaseTool` (calls `RagPipeline.executeWithoutTools()` to avoid recursion), `GetUserAnnualLeaveTool` (mock HR data), `GetOrderStatusTool` (mock logistics data).
 
-**Note:** `FunctionCallService.chatWithTools()` has inverted logic — `config.isEnabled()` being `true` causes tool calling to be **skipped** (falls back to plain chat). With the default `tool.enabled: true`, tool calling is effectively off. Set `tool.enabled: false` to actually enable it, or fix the condition to `!config.isEnabled()`.
+`FunctionCallService.chatWithTools()` checks `!config.isEnabled()` — when `enabled` is `false`, tool calling is skipped (falls back to plain chat). With the default `tool.enabled: true`, tool calling is active.
 
 ### Exception Model
 
