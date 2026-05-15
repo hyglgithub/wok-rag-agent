@@ -24,7 +24,7 @@ public class FunctionCallService {
      * Chat with tool calling support. Returns the final answer after potential tool invocations.
      */
     public String chatWithTools(String systemPrompt, String userMessage) {
-        if (config.isEnabled() || toolRegistry.getAllHandlers().isEmpty()) {
+        if (!config.isEnabled() || toolRegistry.getAllHandlers().isEmpty()) {
             return client.chat(systemPrompt, userMessage);
         }
 
@@ -82,6 +82,64 @@ public class FunctionCallService {
             log.error("Round 2 chat failed", e);
             throw new RagException.GenerationException("Tool calling failed", e);
         }
+    }
+
+    public void chatWithToolsStreaming(String systemPrompt, String userMessage,
+                                       SiliconFlowClient.StreamCallback callback) {
+        if (!config.isEnabled() || toolRegistry.getAllHandlers().isEmpty()) {
+            client.streamChat(systemPrompt, userMessage, callback);
+            return;
+        }
+
+        // Round 1: synchronous tool call
+        JsonObject firstResponse = client.chatWithTools(
+                systemPrompt, userMessage,
+                toolRegistry.getToolDefinitions(),
+                config.getModel());
+
+        JsonArray toolCalls = extractToolCalls(firstResponse);
+
+        if (toolCalls == null || toolCalls.isEmpty()) {
+            String content = extractContent(firstResponse);
+            callback.onComplete(content, 0, 0);
+            return;
+        }
+
+        // Build messages for round 2
+        List<JsonObject> messages = new ArrayList<>();
+
+        JsonObject userMsg = new JsonObject();
+        userMsg.addProperty("role", "user");
+        userMsg.addProperty("content", userMessage);
+        messages.add(userMsg);
+
+        JsonObject assistantMsg = new JsonObject();
+        assistantMsg.addProperty("role", "assistant");
+        assistantMsg.add("content", JsonNull.INSTANCE);
+        assistantMsg.add("tool_calls", toolCalls);
+        messages.add(assistantMsg);
+
+        for (int i = 0; i < toolCalls.size(); i++) {
+            JsonObject toolCall = toolCalls.get(i).getAsJsonObject();
+            String functionName = toolCall.getAsJsonObject("function")
+                    .get("name").getAsString();
+            String arguments = toolCall.getAsJsonObject("function")
+                    .get("arguments").getAsString();
+            String toolCallId = toolCall.get("id").getAsString();
+
+            String result = executeTool(functionName, arguments);
+
+            JsonObject toolMsg = new JsonObject();
+            toolMsg.addProperty("role", "tool");
+            toolMsg.addProperty("tool_call_id", toolCallId);
+            toolMsg.addProperty("content", result);
+            messages.add(toolMsg);
+
+            log.info("Executed tool: {} (id={})", functionName, toolCallId);
+        }
+
+        // Round 2: stream the final answer
+        client.streamChatWithMessages(systemPrompt, messages, config.getModel(), callback);
     }
 
     private String executeTool(String functionName, String arguments) {

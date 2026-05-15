@@ -121,7 +121,7 @@ public class RagPipeline {
     }
 
     private RagResponse handleToolIntent(String question, String sessionId,
-                                           List<ChatMessage> history) {
+                                         List<ChatMessage> history) {
         String systemPrompt = promptService.getSystemPrompt();
         String summary = sessionMemoryService.getSummary(sessionId);
         if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
@@ -143,6 +143,8 @@ public class RagPipeline {
         log.info("Tool intent completed successfully");
         return response;
     }
+
+
 
     private RagResponse handleChitchatIntent(String question, String sessionId,
                                                List<ChatMessage> history,
@@ -223,79 +225,193 @@ public class RagPipeline {
     }
 
     /**
-     * Streaming execution with token-by-token callback.
+     * Streaming execution with token-by-token callback and intent routing.
      */
     public void executeStreaming(String question, String sessionId,
                                   StreamCallback callback) {
         log.info("Executing streaming RAG pipeline for: {}", question);
 
         try {
+            // Step 1: Load session history
             List<ChatMessage> history = (sessionId != null)
                     ? sessionMemoryService.getMessages(sessionId)
                     : List.of();
 
-            String rewrittenQuery = queryRewriter.rewrite(history, question);
+            // Step 2: Intent classification
+            IntentClassifier.IntentResult intentResult = intentClassifier.classify(history, question);
+            log.info("Streaming - detected intent: {} (confidence={})",
+                    intentResult.getIntent(), intentResult.getConfidence());
 
-            double[] queryVector = embeddingService.embed(rewrittenQuery);
-            List<SearchResult> searchResults = hybridSearchService.hybridSearch(
-                    queryVector, rewrittenQuery);
-
-            List<Chunk> chunks = convertToChunks(searchResults);
-
-            String systemPrompt = promptService.getSystemPrompt();
-            String summary = sessionMemoryService.getSummary(sessionId);
-            if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
-                systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
+            // Step 3: Route based on intent
+            switch (intentResult.getIntent()) {
+                case IntentClassifier.INTENT_CHITCHAT:
+                    handleChitchatIntentStreaming(question, sessionId, history, intentResult, callback);
+                    break;
+                case IntentClassifier.INTENT_CLARIFICATION:
+                    handleClarificationIntentStreaming(question, sessionId, intentResult, callback);
+                    break;
+                case IntentClassifier.INTENT_TOOL:
+                    handleToolIntentStreaming(question, sessionId, history, callback);
+                    break;
+                default:
+                    handleKnowledgeIntentStreaming(question, sessionId, history, callback);
             }
-
-            String userPrompt;
-            if (!chunks.isEmpty()) {
-                userPrompt = promptService.buildUserPrompt(chunks, question);
-            } else {
-                userPrompt = question;
-            }
-
-            // Stream the response
-            siliconFlowClient.streamChat(systemPrompt, userPrompt,
-                    new SiliconFlowClient.StreamCallback() {
-                        StringBuilder fullAnswer = new StringBuilder();
-
-                        @Override
-                        public void onToken(String token) {
-                            fullAnswer.append(token);
-                            callback.onToken(token);
-                        }
-
-                        @Override
-                        public void onComplete(String fullContent,
-                                               int promptTokens, int completionTokens) {
-                            // Save to session memory
-                            if (sessionId != null) {
-                                sessionMemoryService.addMessage(sessionId, "user", question);
-                                sessionMemoryService.addMessage(sessionId, "assistant", fullContent);
-                            }
-
-                            RagResponse response = new RagResponse();
-                            response.setAnswer(fullContent);
-                            response.setSessionId(sessionId);
-                            if (!chunks.isEmpty()) {
-                                response.setCitations(parseCitations(fullContent, chunks));
-                            } else {
-                                response.setCitations(new ArrayList<>());
-                            }
-                            callback.onComplete(response);
-                        }
-
-                        @Override
-                        public void onError(Exception e, String partialContent) {
-                            callback.onError(e);
-                        }
-                    });
 
         } catch (Exception e) {
             log.error("Streaming RAG pipeline failed", e);
             callback.onError(e);
         }
+    }
+
+    private void handleKnowledgeIntentStreaming(String question, String sessionId,
+                                                 List<ChatMessage> history,
+                                                 StreamCallback callback) {
+        String rewrittenQuery = queryRewriter.rewrite(history, question);
+        log.debug("Rewritten query: {}", rewrittenQuery);
+
+        double[] queryVector = embeddingService.embed(rewrittenQuery);
+        List<SearchResult> searchResults = hybridSearchService.hybridSearch(
+                queryVector, rewrittenQuery);
+
+        List<Chunk> chunks = new ArrayList<>();
+        if (!searchResults.isEmpty()) {
+            chunks = convertToChunks(searchResults);
+        }
+
+        String systemPrompt = promptService.getSystemPrompt();
+        String summary = sessionMemoryService.getSummary(sessionId);
+        if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
+            systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
+        }
+
+        String userPrompt;
+        if (!chunks.isEmpty()) {
+            userPrompt = promptService.buildUserPrompt(chunks, question);
+        } else {
+            userPrompt = question;
+        }
+
+        List<Chunk> finalChunks = chunks;
+        siliconFlowClient.streamChat(systemPrompt, userPrompt,
+                new SiliconFlowClient.StreamCallback() {
+                    @Override
+                    public void onToken(String token) {
+                        callback.onToken(token);
+                    }
+
+                    @Override
+                    public void onComplete(String fullContent,
+                                           int promptTokens, int completionTokens) {
+                        if (sessionId != null) {
+                            sessionMemoryService.addMessage(sessionId, "user", question);
+                            sessionMemoryService.addMessage(sessionId, "assistant", fullContent);
+                        }
+
+                        RagResponse response = new RagResponse();
+                        response.setAnswer(fullContent);
+                        response.setSessionId(sessionId);
+                        if (!finalChunks.isEmpty()) {
+                            response.setCitations(parseCitations(fullContent, finalChunks));
+                        } else {
+                            response.setCitations(new ArrayList<>());
+                        }
+                        callback.onComplete(response);
+                    }
+
+                    @Override
+                    public void onError(Exception e, String partialContent) {
+                        callback.onError(e);
+                    }
+                });
+    }
+
+    private void handleToolIntentStreaming(String question, String sessionId,
+                                            List<ChatMessage> history,
+                                            StreamCallback callback) {
+        String systemPrompt = promptService.getSystemPrompt();
+        String summary = sessionMemoryService.getSummary(sessionId);
+        if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
+            systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
+        }
+
+        functionCallService.chatWithToolsStreaming(systemPrompt, question,
+                new SiliconFlowClient.StreamCallback() {
+                    @Override
+                    public void onToken(String token) {
+                        callback.onToken(token);
+                    }
+
+                    @Override
+                    public void onComplete(String fullContent,
+                                           int promptTokens, int completionTokens) {
+                        if (sessionId != null) {
+                            sessionMemoryService.addMessage(sessionId, "user", question);
+                            sessionMemoryService.addMessage(sessionId, "assistant", fullContent);
+                        }
+
+                        RagResponse response = new RagResponse();
+                        response.setAnswer(fullContent);
+                        response.setSessionId(sessionId);
+                        response.setCitations(new ArrayList<>());
+                        callback.onComplete(response);
+                    }
+
+                    @Override
+                    public void onError(Exception e, String partialContent) {
+                        callback.onError(e);
+                    }
+                });
+    }
+
+    private void handleChitchatIntentStreaming(String question, String sessionId,
+                                                List<ChatMessage> history,
+                                                IntentClassifier.IntentResult intentResult,
+                                                StreamCallback callback) {
+        String answer;
+        if (intentResult.getReply() != null && !intentResult.getReply().isEmpty()) {
+            answer = intentResult.getReply();
+        } else {
+            if (question.contains("你好") || question.contains("您好")) {
+                answer = "您好！请问有什么可以帮您的？";
+            } else if (question.contains("谢谢") || question.contains("感谢")) {
+                answer = "不客气，还有其他问题随时问我。";
+            } else {
+                answer = "好的，如果您有任何问题，随时告诉我。";
+            }
+        }
+
+        if (sessionId != null) {
+            sessionMemoryService.addMessage(sessionId, "user", question);
+            sessionMemoryService.addMessage(sessionId, "assistant", answer);
+        }
+
+        RagResponse response = new RagResponse();
+        response.setAnswer(answer);
+        response.setSessionId(sessionId);
+        response.setCitations(new ArrayList<>());
+
+        callback.onToken(answer);
+        callback.onComplete(response);
+    }
+
+    private void handleClarificationIntentStreaming(String question, String sessionId,
+                                                     IntentClassifier.IntentResult intentResult,
+                                                     StreamCallback callback) {
+        String answer;
+        if (intentResult.getReply() != null && !intentResult.getReply().isEmpty()) {
+            answer = intentResult.getReply();
+        } else {
+            answer = "您的问题我还不太明确，能否告诉我您想了解哪方面的信息？"
+                    + "比如：产品信息、订单查询、退换货政策等。";
+        }
+
+        RagResponse response = new RagResponse();
+        response.setAnswer(answer);
+        response.setSessionId(sessionId);
+        response.setCitations(new ArrayList<>());
+
+        callback.onToken(answer);
+        callback.onComplete(response);
     }
 
     private String buildSystemPromptWithHistory(List<ChatMessage> history,

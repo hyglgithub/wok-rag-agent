@@ -224,7 +224,7 @@ public class SiliconFlowClient {
         JsonObject requestBody = new JsonObject();
         requestBody.addProperty("model", model != null ? model : config.getChatModel());
         requestBody.addProperty("temperature", 0.1);
-        requestBody.addProperty("max_tokens", 1024);
+        requestBody.addProperty("max_tokens", 2048);
 
         JsonArray messages = new JsonArray();
         if (systemPrompt != null && !systemPrompt.isEmpty()) {
@@ -350,6 +350,110 @@ public class SiliconFlowClient {
                     }
 
                     // Extract usage if present
+                    if (chunk.has("usage") && !chunk.get("usage").isJsonNull()) {
+                        JsonObject usage = chunk.getAsJsonObject("usage");
+                        if (usage.has("prompt_tokens")) {
+                            promptTokens = usage.get("prompt_tokens").getAsInt();
+                        }
+                        if (usage.has("completion_tokens")) {
+                            completionTokens = usage.get("completion_tokens").getAsInt();
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse SSE chunk: {}", data);
+                }
+            }
+
+            if (streamDone) {
+                callback.onComplete(fullContent.toString(), promptTokens, completionTokens);
+            } else {
+                callback.onError(new RuntimeException("SSE stream ended without [DONE]"),
+                        fullContent.toString());
+            }
+        } catch (Exception e) {
+            callback.onError(e, fullContent.toString());
+        }
+    }
+
+    public void streamChatWithMessages(String systemPrompt, List<JsonObject> messages,
+                                        String model, StreamCallback callback) {
+        JsonObject requestBody = new JsonObject();
+        requestBody.addProperty("model", model != null ? model : config.getChatModel());
+        requestBody.addProperty("temperature", 0.7);
+        requestBody.addProperty("max_tokens", 2048);
+        requestBody.addProperty("stream", true);
+
+        JsonArray messagesArray = new JsonArray();
+        if (systemPrompt != null && !systemPrompt.isEmpty()) {
+            JsonObject sysMsg = new JsonObject();
+            sysMsg.addProperty("role", "system");
+            sysMsg.addProperty("content", systemPrompt);
+            messagesArray.add(sysMsg);
+        }
+        for (JsonObject msg : messages) {
+            messagesArray.add(msg);
+        }
+        requestBody.add("messages", messagesArray);
+
+        OkHttpClient streamClient = httpClient.newBuilder()
+                .readTimeout(60, TimeUnit.SECONDS)
+                .build();
+
+        Request request = new Request.Builder()
+                .url(config.getBaseUrl() + "/chat/completions")
+                .addHeader("Authorization", "Bearer " + config.getApiKey())
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", "text/event-stream")
+                .post(RequestBody.create(
+                        gson.toJson(requestBody),
+                        MediaType.parse("application/json")))
+                .build();
+
+        StringBuilder fullContent = new StringBuilder();
+        int promptTokens = 0;
+        int completionTokens = 0;
+
+        try (Response response = streamClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                String errorBody = response.body() != null ? response.body().string() : "no body";
+                callback.onError(new RuntimeException("HTTP " + response.code() + ": " + errorBody), "");
+                return;
+            }
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8));
+            String line;
+            boolean streamDone = false;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.isEmpty() || line.startsWith(":")) continue;
+                if (!line.startsWith("data:")) continue;
+
+                String data = line.substring(5);
+                if (data.startsWith(" ")) data = data.substring(1);
+                if ("[DONE]".equals(data)) {
+                    streamDone = true;
+                    break;
+                }
+
+                try {
+                    JsonObject chunk = gson.fromJson(data, JsonObject.class);
+                    JsonArray choices = chunk.getAsJsonArray("choices");
+                    if (choices != null && !choices.isEmpty()) {
+                        JsonObject choice = choices.get(0).getAsJsonObject();
+                        JsonObject delta = choice.getAsJsonObject("delta");
+                        if (delta != null && delta.has("content")) {
+                            var contentElement = delta.get("content");
+                            if (!contentElement.isJsonNull()) {
+                                String token = contentElement.getAsString();
+                                if (!token.isEmpty()) {
+                                    fullContent.append(token);
+                                    callback.onToken(token);
+                                }
+                            }
+                        }
+                    }
+
                     if (chunk.has("usage") && !chunk.get("usage").isJsonNull()) {
                         JsonObject usage = chunk.getAsJsonObject("usage");
                         if (usage.has("prompt_tokens")) {
