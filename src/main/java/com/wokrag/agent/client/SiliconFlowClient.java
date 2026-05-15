@@ -35,98 +35,128 @@ public class SiliconFlowClient {
         this.gson = new Gson();
     }
 
-    public List<double[]> embed(List<String> texts) {
-        JsonObject requestBody = new JsonObject();
-        requestBody.addProperty("model", config.getEmbeddingModel());
-        requestBody.add("input", gson.toJsonTree(texts));
-        requestBody.addProperty("encoding_format", "float");
+    private static final int MAX_RETRIES = 3;
+    private static final long BASE_DELAY_MS = 1000;
 
-        Request request = new Request.Builder()
-                .url(config.getBaseUrl() + "/embeddings")
-                .addHeader("Authorization", "Bearer " + config.getApiKey())
-                .addHeader("Content-Type", "application/json")
-                .post(RequestBody.create(
-                        gson.toJson(requestBody),
-                        MediaType.parse("application/json")))
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "no body";
-                throw new RagException.EmbeddingException(
-                        "Embedding API failed: HTTP " + response.code() + " - " + errorBody);
-            }
-
-            String responseBody = response.body().string();
-            JsonObject json = gson.fromJson(responseBody, JsonObject.class);
-            JsonArray dataArray = json.getAsJsonArray("data");
-
-            List<double[]> embeddings = new ArrayList<>();
-            for (int i = 0; i < dataArray.size(); i++) {
-                JsonArray embeddingArray = dataArray.get(i)
-                        .getAsJsonObject()
-                        .getAsJsonArray("embedding");
-                double[] vector = new double[embeddingArray.size()];
-                for (int j = 0; j < embeddingArray.size(); j++) {
-                    vector[j] = embeddingArray.get(j).getAsDouble();
+    private <T> T executeWithRetry(java.util.function.Supplier<T> operation, String operationName) {
+        Exception lastException = null;
+        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                return operation.get();
+            } catch (RagException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES) {
+                    long delay = BASE_DELAY_MS * (long) Math.pow(2, attempt);
+                    log.warn("{} failed (attempt {}/{}), retrying in {}ms: {}",
+                            operationName, attempt + 1, MAX_RETRIES + 1, delay, e.getMessage());
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
                 }
-                embeddings.add(vector);
             }
-
-            return embeddings;
-        } catch (IOException e) {
-            throw new RagException.EmbeddingException("Embedding API call failed", e);
         }
+        throw (RagException) lastException;
+    }
+
+    public List<double[]> embed(List<String> texts) {
+        return executeWithRetry(() -> {
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("model", config.getEmbeddingModel());
+            requestBody.add("input", gson.toJsonTree(texts));
+            requestBody.addProperty("encoding_format", "float");
+
+            Request request = new Request.Builder()
+                    .url(config.getBaseUrl() + "/embeddings")
+                    .addHeader("Authorization", "Bearer " + config.getApiKey())
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(
+                            gson.toJson(requestBody),
+                            MediaType.parse("application/json")))
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "no body";
+                    throw new RagException.EmbeddingException(
+                            "Embedding API failed: HTTP " + response.code() + " - " + errorBody);
+                }
+
+                String responseBody = response.body().string();
+                JsonObject json = gson.fromJson(responseBody, JsonObject.class);
+                JsonArray dataArray = json.getAsJsonArray("data");
+
+                List<double[]> embeddings = new ArrayList<>();
+                for (int i = 0; i < dataArray.size(); i++) {
+                    JsonArray embeddingArray = dataArray.get(i)
+                            .getAsJsonObject()
+                            .getAsJsonArray("embedding");
+                    double[] vector = new double[embeddingArray.size()];
+                    for (int j = 0; j < embeddingArray.size(); j++) {
+                        vector[j] = embeddingArray.get(j).getAsDouble();
+                    }
+                    embeddings.add(vector);
+                }
+
+                return embeddings;
+            } catch (IOException e) {
+                throw new RagException.EmbeddingException("Embedding API call failed", e);
+            }
+        }, "embed");
     }
 
     public String chat(String systemPrompt, String userMessage) {
-        JsonObject requestBody = new JsonObject();
-        requestBody.addProperty("model", config.getChatModel());
-        requestBody.addProperty("temperature", 0.1);
-        requestBody.addProperty("max_tokens", 1024);
-        requestBody.addProperty("stream", false);
+        return executeWithRetry(() -> {
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("model", config.getChatModel());
+            requestBody.addProperty("temperature", 0.1);
+            requestBody.addProperty("max_tokens", 1024);
+            requestBody.addProperty("stream", false);
 
-        JsonArray messages = new JsonArray();
+            JsonArray messages = new JsonArray();
 
-        if (systemPrompt != null && !systemPrompt.isEmpty()) {
-            JsonObject systemMsg = new JsonObject();
-            systemMsg.addProperty("role", "system");
-            systemMsg.addProperty("content", systemPrompt);
-            messages.add(systemMsg);
-        }
-
-        JsonObject userMsg = new JsonObject();
-        userMsg.addProperty("role", "user");
-        userMsg.addProperty("content", userMessage);
-        messages.add(userMsg);
-
-        requestBody.add("messages", messages);
-
-        Request request = new Request.Builder()
-                .url(config.getBaseUrl() + "/chat/completions")
-                .addHeader("Authorization", "Bearer " + config.getApiKey())
-                .addHeader("Content-Type", "application/json")
-                .post(RequestBody.create(
-                        gson.toJson(requestBody),
-                        MediaType.parse("application/json")))
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "no body";
-                throw new RagException.GenerationException(
-                        "Chat API failed: HTTP " + response.code() + " - " + errorBody);
+            if (systemPrompt != null && !systemPrompt.isEmpty()) {
+                JsonObject systemMsg = new JsonObject();
+                systemMsg.addProperty("role", "system");
+                systemMsg.addProperty("content", systemPrompt);
+                messages.add(systemMsg);
             }
 
-            String responseBody = response.body().string();
-            JsonObject json = gson.fromJson(responseBody, JsonObject.class);
-            return json.getAsJsonArray("choices")
-                    .get(0).getAsJsonObject()
-                    .getAsJsonObject("message")
-                    .get("content").getAsString();
-        } catch (IOException e) {
-            throw new RagException.GenerationException("Chat API call failed", e);
-        }
+            JsonObject userMsg = new JsonObject();
+            userMsg.addProperty("role", "user");
+            userMsg.addProperty("content", userMessage);
+            messages.add(userMsg);
+
+            requestBody.add("messages", messages);
+
+            Request request = new Request.Builder()
+                    .url(config.getBaseUrl() + "/chat/completions")
+                    .addHeader("Authorization", "Bearer " + config.getApiKey())
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(
+                            gson.toJson(requestBody),
+                            MediaType.parse("application/json")))
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "no body";
+                    throw new RagException.GenerationException(
+                            "Chat API failed: HTTP " + response.code() + " - " + errorBody);
+                }
+
+                String responseBody = response.body().string();
+                JsonObject json = gson.fromJson(responseBody, JsonObject.class);
+                return json.getAsJsonArray("choices")
+                        .get(0).getAsJsonObject()
+                        .getAsJsonObject("message")
+                        .get("content").getAsString();
+            } catch (IOException e) {
+                throw new RagException.GenerationException("Chat API call failed", e);
+            }
+        }, "chat");
     }
 
     public String chat(String systemPrompt, String userMessage, String model) {
@@ -480,52 +510,54 @@ public class SiliconFlowClient {
     }
 
     public List<RerankResult> rerank(String query, List<String> documents, int topN) {
-        JsonObject requestBody = new JsonObject();
-        requestBody.addProperty("model", config.getRerankerModel());
-        requestBody.addProperty("query", query);
-        requestBody.add("documents", gson.toJsonTree(documents));
-        requestBody.addProperty("top_n", topN);
-        requestBody.addProperty("return_documents", true);
+        return executeWithRetry(() -> {
+            JsonObject requestBody = new JsonObject();
+            requestBody.addProperty("model", config.getRerankerModel());
+            requestBody.addProperty("query", query);
+            requestBody.add("documents", gson.toJsonTree(documents));
+            requestBody.addProperty("top_n", topN);
+            requestBody.addProperty("return_documents", true);
 
-        Request request = new Request.Builder()
-                .url(config.getBaseUrl() + "/rerank")
-                .addHeader("Authorization", "Bearer " + config.getApiKey())
-                .addHeader("Content-Type", "application/json")
-                .post(RequestBody.create(
-                        gson.toJson(requestBody),
-                        MediaType.parse("application/json")))
-                .build();
+            Request request = new Request.Builder()
+                    .url(config.getBaseUrl() + "/rerank")
+                    .addHeader("Authorization", "Bearer " + config.getApiKey())
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(
+                            gson.toJson(requestBody),
+                            MediaType.parse("application/json")))
+                    .build();
 
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "no body";
-                throw new RagException.RetrievalException(
-                        "Rerank API failed: HTTP " + response.code() + " - " + errorBody);
-            }
-
-            String responseBody = response.body().string();
-            JsonObject json = gson.fromJson(responseBody, JsonObject.class);
-            JsonArray results = json.getAsJsonArray("results");
-
-            List<RerankResult> rerankResults = new ArrayList<>();
-            for (int i = 0; i < results.size(); i++) {
-                JsonObject item = results.get(i).getAsJsonObject();
-                RerankResult result = new RerankResult();
-                result.setIndex(item.get("index").getAsInt());
-                result.setScore(item.get("relevance_score").getAsDouble());
-
-                if (item.has("document") && item.get("document").isJsonObject()) {
-                    JsonObject doc = item.getAsJsonObject("document");
-                    result.setText(doc.has("text") ? doc.get("text").getAsString() : "");
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "no body";
+                    throw new RagException.RetrievalException(
+                            "Rerank API failed: HTTP " + response.code() + " - " + errorBody);
                 }
 
-                rerankResults.add(result);
-            }
+                String responseBody = response.body().string();
+                JsonObject json = gson.fromJson(responseBody, JsonObject.class);
+                JsonArray results = json.getAsJsonArray("results");
 
-            return rerankResults;
-        } catch (IOException e) {
-            throw new RagException.RetrievalException("Rerank API call failed", e);
-        }
+                List<RerankResult> rerankResults = new ArrayList<>();
+                for (int i = 0; i < results.size(); i++) {
+                    JsonObject item = results.get(i).getAsJsonObject();
+                    RerankResult result = new RerankResult();
+                    result.setIndex(item.get("index").getAsInt());
+                    result.setScore(item.get("relevance_score").getAsDouble());
+
+                    if (item.has("document") && item.get("document").isJsonObject()) {
+                        JsonObject doc = item.getAsJsonObject("document");
+                        result.setText(doc.has("text") ? doc.get("text").getAsString() : "");
+                    }
+
+                    rerankResults.add(result);
+                }
+
+                return rerankResults;
+            } catch (IOException e) {
+                throw new RagException.RetrievalException("Rerank API call failed", e);
+            }
+        }, "rerank");
     }
 
     @lombok.Data
