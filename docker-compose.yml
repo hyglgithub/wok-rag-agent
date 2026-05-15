@@ -85,6 +85,23 @@ services:
     depends_on:
       - standalone
 
+  app:
+    container_name: wok-rag-agent
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
+      - MILVUS_URI=http://milvus-standalone:19530
+      - SPRING_PROFILES_ACTIVE=prod
+      - API_KEY=${API_KEY:-wokrag-default-key-change-me}
+    depends_on:
+      standalone:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   rustfs-data:
   etcd-data:
