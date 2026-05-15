@@ -188,4 +188,17 @@ public class MilvusClientWrapper {
     public MilvusClientV2 getClient() {
         return client;
     }
+
+    public boolean isHealthy() {
+        try {
+            Boolean exists = client.hasCollection(
+                    HasCollectionReq.builder()
+                            .collectionName(config.getCollectionName())
+                            .build());
+            return Boolean.TRUE.equals(exists);
+        } catch (Exception e) {
+            log.warn("Milvus health check failed: {}", e.getMessage());
+            return false;
+        }
+    }
 }
