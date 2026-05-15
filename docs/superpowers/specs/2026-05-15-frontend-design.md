@@ -2,18 +2,42 @@
 
 ## 概述
 
-为 wok-rag-agent RAG 知识问答系统构建 Vue 3 前端应用，提供类 ChatGPT 的对话界面及管理功能。
+为 wok-rag-agent RAG 知识问答系统构建 React 前端应用，提供类 ChatGPT 的对话界面及管理功能。
 
-**技术栈**：Vue 3 + TypeScript + Vite + Pinia + Vue Router
+**技术栈**：React 19 + TypeScript + Vite + Zustand + React Router + Tailwind CSS + @headlessui/react
 **后端 API**：`http://localhost:8080`，REST + SSE
+**部署**：Vercel
 
 ## 整体布局
 
-侧边栏 + 主内容区布局：
+侧边栏 + 主内容区布局（方案 A）：
 
 - **左侧边栏**（固定，可折叠）：上半部分为会话列表 + 新建对话按钮，下半部分为导航菜单
 - **右侧主内容区**：根据路由切换显示不同页面
 - 移动端自动收起侧边栏
+
+```
+┌─────────────────────────────────────────────────┐
+│  ┌──────────┐  ┌────────────────────────────┐   │
+│  │ 侧边栏    │  │        主内容区              │   │
+│  │           │  │                            │   │
+│  │ [Logo]    │  │   根据路由切换显示：          │   │
+│  │           │  │   - 聊天对话页              │   │
+│  │ 新建对话   │  │   - 知识库管理页            │   │
+│  │           │  │   - 会话历史页              │   │
+│  │ 会话列表   │  │   - 系统状态页              │   │
+│  │ - 会话1    │  │   - 设置页                 │   │
+│  │ - 会话2    │  │                            │   │
+│  │ - ...     │  │                            │   │
+│  │           │  │                            │   │
+│  │ ──────── │  │                            │   │
+│  │ 知识库    │  │                            │   │
+│  │ 会话历史  │  │                            │   │
+│  │ 系统状态  │  │                            │   │
+│  │ 设置     │  │                            │   │
+│  └──────────┘  └────────────────────────────┘   │
+└─────────────────────────────────────────────────┘
+```
 
 ## 页面结构
 
@@ -45,7 +69,7 @@ interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
-  citations?: Citation[]
+  citations: Citation[]
   timestamp: number
   error?: string
 }
@@ -67,7 +91,7 @@ interface Citation {
 
 **文档数据结构**：
 ```typescript
-interface Document {
+interface DocumentInfo {
   id: string
   name: string
   source: string
@@ -208,50 +232,50 @@ interface Session {
 
 ```
 frontend/src/
-├── api/                  # API 请求封装
-│   ├── client.ts         # axios/fetch 基础配置
-│   ├── rag.ts            # RAG 相关接口
-│   └── document.ts       # 文档管理接口
-├── components/           # 通用组件
+├── api/                    # API 请求封装
+│   ├── client.ts           # fetch 基础配置
+│   ├── rag.ts              # RAG 相关接口
+│   └── document.ts         # 文档管理接口
+├── components/             # 通用组件
 │   ├── chat/
-│   │   ├── ChatMessage.vue
-│   │   ├── ChatInput.vue
-│   │   ├── CitationCard.vue
-│   │   └── StreamingText.vue
+│   │   ├── MessageBubble.tsx
+│   │   ├── ChatInput.tsx
+│   │   └── CitationCard.tsx
 │   ├── layout/
-│   │   ├── AppLayout.vue
-│   │   ├── Sidebar.vue
-│   │   └── SessionList.vue
+│   │   ├── AppLayout.tsx
+│   │   └── Sidebar.tsx
 │   └── common/
-│       ├── StatusCard.vue
-│       └── UploadDialog.vue
-├── views/                # 页面组件
-│   ├── ChatView.vue
-│   ├── KnowledgeView.vue
-│   ├── HistoryView.vue
-│   ├── StatusView.vue
-│   └── SettingsView.vue
-├── stores/               # Pinia 状态管理
-│   ├── chat.ts           # 聊天状态（消息、流式输出）
-│   ├── session.ts        # 会话管理
-│   └── settings.ts       # 设置
-├── router/
-│   └── index.ts
+│       ├── StatusCard.tsx
+│       └── UploadDialog.tsx
+├── pages/                  # 页面组件
+│   ├── ChatPage.tsx
+│   ├── KnowledgePage.tsx
+│   ├── HistoryPage.tsx
+│   ├── StatusPage.tsx
+│   └── SettingsPage.tsx
+├── stores/                 # Zustand 状态管理
+│   ├── chatStore.ts        # 聊天状态（消息、流式输出）
+│   ├── sessionStore.ts     # 会话管理
+│   └── settingsStore.ts    # 设置
 ├── types/
-│   └── index.ts          # TypeScript 类型定义
-├── utils/
-│   └── stream.ts         # SSE 流式处理工具
-├── App.vue
-└── main.ts
+│   └── index.ts            # TypeScript 类型定义
+├── App.tsx
+├── main.tsx
+└── index.css               # Tailwind 入口
 ```
 
 ## UI 风格与技术选型
 
-**样式方案**：Tailwind CSS + Headless UI（shadcn-vue 风格）
+**框架**：React 19 + TypeScript + Vite
+**路由**：React Router v7
+**状态管理**：Zustand — 轻量、无 Provider、API 简洁
+**样式方案**：Tailwind CSS + @headlessui/react
 - Tailwind CSS 负责所有样式定制，完全控制视觉风格
 - Headless UI 提供无障碍交互、键盘导航等现成逻辑
-- 不使用 Element Plus 等重组件库，避免千篇一律的后台管理风格
+- 不使用 Ant Design 等重组件库，避免千篇一律的后台管理风格
 - 参考 ChatGPT 的简洁对话界面
+
+**部署**：Vercel — 配置 rewrite 将 `/api/*` 代理到后端
 
 **主题**：浅色为主，支持深色模式切换（Tailwind `dark:` 变体 + CSS 变量）
 **布局**：响应式，移动端自动收起侧边栏
