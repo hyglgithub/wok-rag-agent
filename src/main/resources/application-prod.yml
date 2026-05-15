@@ -1,0 +1,30 @@
+# Production environment overrides
+server:
+  port: ${SERVER_PORT:8080}
+
+siliconflow:
+  api-key: ${SILICONFLOW_API_KEY}
+
+milvus:
+  uri: ${MILVUS_URI:http://localhost:19530}
+
+# Actuator: expose health, info, prometheus
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Security: enable API key auth
+security:
+  api-key:
+    enabled: true
+    key: ${API_KEY:wokrag-default-key-change-me}
+
+# Rate limiting
+rate-limit:
+  enabled: true
+  requests-per-minute: 60
