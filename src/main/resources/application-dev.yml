@@ -1,9 +1,3 @@
 # Development environment overrides
-logging:
-  level:
-    com.wokrag: DEBUG
-    io.milvus: DEBUG
-
-# Use environment variable or default
 siliconflow:
   api-key: ${SILICONFLOW_API_KEY}
