@@ -1,14 +1,67 @@
 import { create } from 'zustand'
 import type { Settings } from '@/types'
 
-interface SettingsState {
-  settings: Settings
+const STORAGE_KEY = 'wok-rag-settings'
+
+function loadSettings(): Settings {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored) {
+    try {
+      return JSON.parse(stored) as Settings
+    } catch {
+      // ignore
+    }
+  }
+  return {
+    apiUrl: 'http://localhost:8080',
+    theme: 'light',
+    language: 'zh',
+  }
 }
 
-export const useSettingsStore = create<SettingsState>()(() => ({
-  settings: {
-    apiUrl: 'http://localhost:8080',
-    theme: 'light' as const,
-    language: 'zh' as const,
-  },
-}))
+function persist(settings: Settings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+}
+
+interface SettingsState {
+  settings: Settings
+  updateTheme: (theme: 'light' | 'dark') => void
+  updateApiUrl: (url: string) => void
+  updateLanguage: (lang: 'zh' | 'en') => void
+}
+
+export const useSettingsStore = create<SettingsState>()((set) => {
+  const initial = loadSettings()
+
+  // Apply theme on init
+  if (initial.theme === 'dark') {
+    document.documentElement.classList.add('dark')
+  }
+
+  return {
+    settings: initial,
+    updateTheme: (theme) =>
+      set((state) => {
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+        const next = { ...state.settings, theme }
+        persist(next)
+        return { settings: next }
+      }),
+    updateApiUrl: (url) =>
+      set((state) => {
+        const next = { ...state.settings, apiUrl: url }
+        persist(next)
+        return { settings: next }
+      }),
+    updateLanguage: (lang) =>
+      set((state) => {
+        const next = { ...state.settings, language: lang }
+        persist(next)
+        return { settings: next }
+      }),
+  }
+})
