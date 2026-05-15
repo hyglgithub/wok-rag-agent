@@ -4,9 +4,9 @@
 
 **Goal:** Build a ChatGPT-style React frontend for the wok-rag-agent RAG system with streaming chat, knowledge management, session history, status monitoring, and settings.
 
-**Architecture:** SPA with sidebar navigation layout. Chat page uses SSE streaming via `fetch` + `ReadableStream`. State managed by Zustand. Styling via Tailwind CSS v4 + @headlessui/react for accessible interactions.
+**Architecture:** SPA with sidebar navigation layout. Chat page uses SSE streaming via `fetch` + `ReadableStream`. State managed by Zustand. Styling via Tailwind CSS v4 + shadcn/ui (Radix UI) for accessible, customizable components.
 
-**Tech Stack:** React 19, TypeScript, Vite, Zustand, React Router v7, Tailwind CSS v4, @headlessui/react, lucide-react
+**Tech Stack:** React 19, TypeScript, Vite, Zustand, React Router v7, Tailwind CSS v4, shadcn/ui, lucide-react
 
 **Backend dependency:** Some pages (Knowledge, History) require backend APIs not yet implemented. These pages will show empty states gracefully when APIs are unavailable. The Chat and Status pages work with existing endpoints.
 
@@ -23,6 +23,15 @@ frontend/src/
 │   ├── rag.ts                 # /api/rag/* endpoints
 │   └── document.ts            # /api/documents/* endpoints
 ├── components/
+│   ├── ui/                    # shadcn/ui components (auto-generated)
+│   │   ├── button.tsx
+│   │   ├── dialog.tsx
+│   │   ├── input.tsx
+│   │   ├── table.tsx
+│   │   ├── badge.tsx
+│   │   ├── card.tsx
+│   │   ├── scroll-area.tsx
+│   │   └── tooltip.tsx
 │   ├── layout/
 │   │   ├── AppLayout.tsx      # sidebar + main content area
 │   │   └── Sidebar.tsx        # navigation + session list
@@ -52,21 +61,25 @@ frontend/src/
 
 ---
 
-### Task 1: Install Dependencies and Configure Tailwind CSS
+### Task 1: Install Dependencies and Configure Tailwind CSS + shadcn/ui
 
 **Files:**
 - Modify: `frontend/package.json`
 - Modify: `frontend/vite.config.ts`
+- Modify: `frontend/tsconfig.app.json`
 - Modify: `frontend/src/index.css`
 - Modify: `frontend/index.html`
 - Modify: `frontend/src/main.tsx`
+- Create: `frontend/src/lib/utils.ts` (shadcn/ui utility)
+- Create: `frontend/components.json` (shadcn/ui config)
+- Auto-generated: `frontend/src/components/ui/*.tsx` (shadcn/ui components)
 - Delete: `frontend/src/App.css`, `frontend/src/assets/hero.png`, `frontend/src/assets/react.svg`, `frontend/src/assets/vite.svg`
 
 - [ ] **Step 1: Install npm dependencies**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent/frontend
-npm install react-router-dom zustand @headlessui/react lucide-react
+npm install react-router-dom zustand lucide-react
 npm install -D tailwindcss @tailwindcss/vite
 ```
 
@@ -128,41 +141,61 @@ Replace `frontend/tsconfig.app.json`:
 }
 ```
 
-- [ ] **Step 4: Replace index.css with Tailwind and theme variables**
+- [ ] **Step 4: Initialize shadcn/ui**
 
-Replace `frontend/src/index.css`:
+```bash
+cd E:/idea_workspace/wok-rag-agent/frontend
+npx shadcn@latest init -d -y
+```
+
+This will:
+- Create `components.json` (shadcn config)
+- Create `src/lib/utils.ts` (with `cn()` helper using clsx + tailwind-merge)
+- Modify `src/index.css` (add shadcn CSS variables)
+- Install `clsx`, `tailwind-merge`, `class-variance-authority`
+
+After init, verify `src/lib/utils.ts` exists:
+
+```typescript
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+```
+
+- [ ] **Step 5: Add shadcn/ui components**
+
+```bash
+cd E:/idea_workspace/wok-rag-agent/frontend
+npx shadcn@latest add button dialog input table badge card scroll-area tooltip sonner -y
+```
+
+This creates component files in `src/components/ui/`. Verify they exist:
+
+```bash
+ls E:/idea_workspace/wok-rag-agent/frontend/src/components/ui/
+```
+
+Expected: `button.tsx`, `dialog.tsx`, `input.tsx`, `table.tsx`, `badge.tsx`, `card.tsx`, `scroll-area.tsx`, `tooltip.tsx`, `sonner.tsx`
+
+- [ ] **Step 6: Update index.css with custom theme tokens**
+
+The shadcn init already creates a base `index.css`. Add custom tokens after the shadcn variables. Append to `frontend/src/index.css` (after the shadcn-generated content):
 
 ```css
-@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
+/* Custom tokens for chat UI */
 @theme {
   --color-primary: #10a37f;
   --color-primary-hover: #0e8c6d;
-  --color-surface: #ffffff;
-  --color-surface-secondary: #f7f7f8;
-  --color-border: #e5e5e5;
-  --color-text: #1a1a1a;
-  --color-text-secondary: #6b6b6b;
   --color-user-bubble: #f0f0f0;
-  --color-error: #ef4444;
 }
-
-@custom-variant dark (&:where(.dark, .dark *));
 
 .dark {
-  --color-surface: #1e1e1e;
-  --color-surface-secondary: #2a2a2a;
-  --color-border: #3a3a3a;
-  --color-text: #e5e5e5;
-  --color-text-secondary: #9a9a9a;
   --color-user-bubble: #2f2f2f;
-}
-
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--color-surface);
-  color: var(--color-text);
 }
 
 ::-webkit-scrollbar {
@@ -172,12 +205,12 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: hsl(var(--border));
   border-radius: 3px;
 }
 ```
 
-- [ ] **Step 5: Update index.html**
+- [ ] **Step 7: Update index.html**
 
 Replace `frontend/index.html`:
 
@@ -197,7 +230,7 @@ Replace `frontend/index.html`:
 </html>
 ```
 
-- [ ] **Step 6: Remove unused boilerplate files**
+- [ ] **Step 8: Remove unused boilerplate files**
 
 ```bash
 rm -f E:/idea_workspace/wok-rag-agent/frontend/src/App.css
@@ -206,7 +239,7 @@ rm -f E:/idea_workspace/wok-rag-agent/frontend/src/assets/react.svg
 rm -f E:/idea_workspace/wok-rag-agent/frontend/src/assets/vite.svg
 ```
 
-- [ ] **Step 7: Update main.tsx to be clean**
+- [ ] **Step 9: Update main.tsx to be clean**
 
 Replace `frontend/src/main.tsx`:
 
@@ -223,7 +256,7 @@ createRoot(document.getElementById('root')!).render(
 )
 ```
 
-- [ ] **Step 8: Verify dev server starts**
+- [ ] **Step 10: Verify dev server starts**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
@@ -231,12 +264,12 @@ cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
 
 Expected: Dev server starts on `http://localhost:5173` without errors.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent
 git add frontend/
-git commit -m "feat: setup Tailwind CSS v4, Zustand, React Router, and project foundation"
+git commit -m "feat: setup Tailwind CSS v4, shadcn/ui, Zustand, and React Router"
 ```
 
 ---
@@ -1461,8 +1494,10 @@ Create `frontend/src/components/common/UploadDialog.tsx`:
 
 ```tsx
 import { useState, useRef } from 'react'
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
-import { Upload, X, FileText } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Upload, FileText } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -1497,97 +1532,56 @@ export default function UploadDialog({ open, onClose, onUpload }: Props) {
   }
 
   return (
-    <Transition show={open}>
-      <Dialog onClose={onClose} className="relative z-50">
-        <TransitionChild
-          enter="duration-200 ease-out"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="duration-150 ease-in"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>上传文档</DialogTitle>
+        </DialogHeader>
+
+        {/* Drop zone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+            dragOver ? 'border-primary bg-primary/5' : 'border-border'
+          }`}
         >
-          <div className="fixed inset-0 bg-black/30" />
-        </TransitionChild>
-
-        <div className="fixed inset-0 flex items-center justify-center p-4">
-          <TransitionChild
-            enter="duration-200 ease-out"
-            enterFrom="opacity-0 scale-95"
-            enterTo="opacity-100 scale-100"
-            leave="duration-150 ease-in"
-            leaveFrom="opacity-100 scale-100"
-            leaveTo="opacity-0 scale-95"
-          >
-            <DialogPanel className="w-full max-w-md rounded-xl bg-surface border border-border p-6 shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <DialogTitle className="text-lg font-semibold text-text">上传文档</DialogTitle>
-                <button onClick={onClose} className="p-1 rounded hover:bg-border/50 text-text-secondary">
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Drop zone */}
-              <div
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  dragOver ? 'border-primary bg-primary/5' : 'border-border'
-                }`}
-              >
-                {selectedFile ? (
-                  <FileText size={32} className="mx-auto mb-2 text-primary" />
-                ) : (
-                  <Upload size={32} className="mx-auto mb-2 text-text-secondary" />
-                )}
-                <p className="text-sm text-text">
-                  {selectedFile ? selectedFile.name : '拖拽文件到此处或点击选择'}
-                </p>
-                <p className="text-xs text-text-secondary mt-1">支持 PDF、TXT、DOCX 等格式</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                  accept=".pdf,.txt,.docx,.doc,.md"
-                />
-              </div>
-
-              {/* Source input */}
-              <div className="mt-4">
-                <label className="block text-sm text-text-secondary mb-1">来源描述（可选）</label>
-                <input
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  type="text"
-                  placeholder="例如：官网、客服中心"
-                  className="w-full rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-end gap-2 mt-6">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-lg text-sm text-text-secondary hover:bg-border/50 transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleUpload}
-                  disabled={!selectedFile}
-                  className="px-4 py-2 rounded-lg text-sm text-white bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  上传
-                </button>
-              </div>
-            </DialogPanel>
-          </TransitionChild>
+          {selectedFile ? (
+            <FileText size={32} className="mx-auto mb-2 text-primary" />
+          ) : (
+            <Upload size={32} className="mx-auto mb-2 text-muted-foreground" />
+          )}
+          <p className="text-sm">
+            {selectedFile ? selectedFile.name : '拖拽文件到此处或点击选择'}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">支持 PDF、TXT、DOCX 等格式</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept=".pdf,.txt,.docx,.doc,.md"
+          />
         </div>
-      </Dialog>
-    </Transition>
+
+        {/* Source input */}
+        <div className="mt-2">
+          <label className="block text-sm text-muted-foreground mb-1">来源描述（可选）</label>
+          <Input
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            placeholder="例如：官网、客服中心"
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button onClick={handleUpload} disabled={!selectedFile}>上传</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 ```

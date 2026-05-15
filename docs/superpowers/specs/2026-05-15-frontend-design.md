@@ -4,7 +4,7 @@
 
 为 wok-rag-agent RAG 知识问答系统构建 React 前端应用，提供类 ChatGPT 的对话界面及管理功能。
 
-**技术栈**：React 19 + TypeScript + Vite + Zustand + React Router + Tailwind CSS + @headlessui/react
+**技术栈**：React 19 + TypeScript + Vite + Zustand + React Router + Tailwind CSS + shadcn/ui (Radix UI)
 **后端 API**：`http://localhost:8080`，REST + SSE
 **部署**：Vercel
 
@@ -269,15 +269,16 @@ frontend/src/
 **框架**：React 19 + TypeScript + Vite
 **路由**：React Router v7
 **状态管理**：Zustand — 轻量、无 Provider、API 简洁
-**样式方案**：Tailwind CSS + @headlessui/react
-- Tailwind CSS 负责所有样式定制，完全控制视觉风格
-- Headless UI 提供无障碍交互、键盘导航等现成逻辑
-- 不使用 Ant Design 等重组件库，避免千篇一律的后台管理风格
+**样式方案**：shadcn/ui + Tailwind CSS
+- shadcn/ui 提供高质量、可定制的 React 组件（基于 Radix UI）
+- 组件直接复制到项目中，完全可控，无黑盒依赖
+- Tailwind CSS 负责自定义样式
+- 使用的 shadcn/ui 组件：Button, Dialog, Input, Table, Badge, Card, ScrollArea, Tooltip 等
 - 参考 ChatGPT 的简洁对话界面
 
 **部署**：Vercel — 配置 rewrite 将 `/api/*` 代理到后端
 
-**主题**：浅色为主，支持深色模式切换（Tailwind `dark:` 变体 + CSS 变量）
+**主题**：浅色为主，支持深色模式切换（shadcn/ui 内置 dark mode 支持）
 **布局**：响应式，移动端自动收起侧边栏
 **消息气泡**：用户消息靠右，AI 回答靠左
 **引用卡片**：灰色背景，可折叠展开
