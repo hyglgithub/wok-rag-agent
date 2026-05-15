@@ -48,3 +48,9 @@ rewrite:
 tool:
   enabled: true
   model: Qwen/Qwen2.5-7B-Instruct
+
+# Intent Classification Configuration
+intent:
+  enabled: true
+  model: Qwen/Qwen2.5-7B-Instruct
+  confidence-threshold: 0.5

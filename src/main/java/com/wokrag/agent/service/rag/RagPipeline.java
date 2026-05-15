@@ -9,6 +9,7 @@ import com.wokrag.agent.model.SearchResult;
 import com.wokrag.agent.service.embedding.EmbeddingService;
 import com.wokrag.agent.service.generation.LlmService;
 import com.wokrag.agent.service.generation.PromptService;
+import com.wokrag.agent.service.intent.IntentClassifier;
 import com.wokrag.agent.service.memory.SessionMemoryService;
 import com.wokrag.agent.service.retrieval.HybridSearchService;
 import com.wokrag.agent.service.rewrite.QueryRewriter;
@@ -33,6 +34,7 @@ public class RagPipeline {
     private final FunctionCallService functionCallService;
     private final SiliconFlowClient siliconFlowClient;
     private final PromptService promptService;
+    private final IntentClassifier intentClassifier;
 
     public RagResponse execute(String question) {
         return execute(question, null);
@@ -47,55 +49,21 @@ public class RagPipeline {
                     ? sessionMemoryService.getMessages(sessionId)
                     : List.of();
 
-            // Step 2: Rewrite query using history context
-            String rewrittenQuery = queryRewriter.rewrite(history, question);
-            log.debug("Rewritten query: {}", rewrittenQuery);
+            // Step 2: Intent classification (after history, before rewrite)
+            IntentClassifier.IntentResult intentResult = intentClassifier.classify(history, question);
+            log.info("Detected intent: {} (confidence={})", intentResult.getIntent(), intentResult.getConfidence());
 
-            // Step 3: Embedding + Retrieval
-            double[] queryVector = embeddingService.embed(rewrittenQuery);
-            List<SearchResult> searchResults = hybridSearchService.hybridSearch(
-                    queryVector, rewrittenQuery);
-
-            List<Chunk> chunks = new ArrayList<>();
-            if (!searchResults.isEmpty()) {
-                chunks = convertToChunks(searchResults);
+            // Step 3: Route based on intent
+            switch (intentResult.getIntent()) {
+                case IntentClassifier.INTENT_TOOL:
+                    return handleToolIntent(question, sessionId, history);
+                case IntentClassifier.INTENT_CHITCHAT:
+                    return handleChitchatIntent(question, sessionId, history, intentResult);
+                case IntentClassifier.INTENT_CLARIFICATION:
+                    return handleClarificationIntent(question, sessionId, intentResult);
+                default:
+                    return handleKnowledgeIntent(question, sessionId, history);
             }
-
-            // Step 4: Generate answer with Function Call support
-            String systemPrompt = promptService.getSystemPrompt();
-            String summary = sessionMemoryService.getSummary(sessionId);
-            if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
-                systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
-            }
-
-            String answer;
-            if (!chunks.isEmpty()) {
-                // Use RAG generation with retrieved context
-                String userPrompt = promptService.buildUserPrompt(chunks, question);
-                answer = functionCallService.chatWithTools(systemPrompt, userPrompt);
-            } else {
-                // No retrieval results, try tool calling directly
-                answer = functionCallService.chatWithTools(systemPrompt, question);
-            }
-
-            // Step 5: Save to session memory
-            if (sessionId != null) {
-                sessionMemoryService.addMessage(sessionId, "user", question);
-                sessionMemoryService.addMessage(sessionId, "assistant", answer);
-            }
-
-            // Build response
-            RagResponse response = new RagResponse();
-            response.setAnswer(answer);
-            response.setSessionId(sessionId);
-            if (!chunks.isEmpty()) {
-                response.setCitations(parseCitations(answer, chunks));
-            } else {
-                response.setCitations(new ArrayList<>());
-            }
-
-            log.info("RAG pipeline completed successfully");
-            return response;
 
         } catch (RagException e) {
             log.error("RAG pipeline failed", e);
@@ -104,6 +72,125 @@ public class RagPipeline {
             log.error("Unexpected error in RAG pipeline", e);
             throw new RagException.GenerationException("RAG pipeline failed", e);
         }
+    }
+
+    private RagResponse handleKnowledgeIntent(String question, String sessionId,
+                                                List<ChatMessage> history) {
+        String rewrittenQuery = queryRewriter.rewrite(history, question);
+        log.debug("Rewritten query: {}", rewrittenQuery);
+
+        double[] queryVector = embeddingService.embed(rewrittenQuery);
+        List<SearchResult> searchResults = hybridSearchService.hybridSearch(
+                queryVector, rewrittenQuery);
+
+        List<Chunk> chunks = new ArrayList<>();
+        if (!searchResults.isEmpty()) {
+            chunks = convertToChunks(searchResults);
+        }
+
+        String systemPrompt = promptService.getSystemPrompt();
+        String summary = sessionMemoryService.getSummary(sessionId);
+        if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
+            systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
+        }
+
+        String answer;
+        if (!chunks.isEmpty()) {
+            String userPrompt = promptService.buildUserPrompt(chunks, question);
+            answer = functionCallService.chatWithTools(systemPrompt, userPrompt);
+        } else {
+            answer = functionCallService.chatWithTools(systemPrompt, question);
+        }
+
+        if (sessionId != null) {
+            sessionMemoryService.addMessage(sessionId, "user", question);
+            sessionMemoryService.addMessage(sessionId, "assistant", answer);
+        }
+
+        RagResponse response = new RagResponse();
+        response.setAnswer(answer);
+        response.setSessionId(sessionId);
+        if (!chunks.isEmpty()) {
+            response.setCitations(parseCitations(answer, chunks));
+        } else {
+            response.setCitations(new ArrayList<>());
+        }
+
+        log.info("Knowledge intent completed successfully");
+        return response;
+    }
+
+    private RagResponse handleToolIntent(String question, String sessionId,
+                                           List<ChatMessage> history) {
+        String systemPrompt = promptService.getSystemPrompt();
+        String summary = sessionMemoryService.getSummary(sessionId);
+        if (!history.isEmpty() || (summary != null && !summary.isEmpty())) {
+            systemPrompt = buildSystemPromptWithHistory(history, systemPrompt, summary);
+        }
+
+        String answer = functionCallService.chatWithTools(systemPrompt, question);
+
+        if (sessionId != null) {
+            sessionMemoryService.addMessage(sessionId, "user", question);
+            sessionMemoryService.addMessage(sessionId, "assistant", answer);
+        }
+
+        RagResponse response = new RagResponse();
+        response.setAnswer(answer);
+        response.setSessionId(sessionId);
+        response.setCitations(new ArrayList<>());
+
+        log.info("Tool intent completed successfully");
+        return response;
+    }
+
+    private RagResponse handleChitchatIntent(String question, String sessionId,
+                                               List<ChatMessage> history,
+                                               IntentClassifier.IntentResult intentResult) {
+        String answer;
+        if (intentResult.getReply() != null && !intentResult.getReply().isEmpty()) {
+            answer = intentResult.getReply();
+        } else {
+            if (question.contains("你好") || question.contains("您好")) {
+                answer = "您好！请问有什么可以帮您的？";
+            } else if (question.contains("谢谢") || question.contains("感谢")) {
+                answer = "不客气，还有其他问题随时问我。";
+            } else {
+                answer = "好的，如果您有任何问题，随时告诉我。";
+            }
+        }
+
+        if (sessionId != null) {
+            sessionMemoryService.addMessage(sessionId, "user", question);
+            sessionMemoryService.addMessage(sessionId, "assistant", answer);
+        }
+
+        RagResponse response = new RagResponse();
+        response.setAnswer(answer);
+        response.setSessionId(sessionId);
+        response.setCitations(new ArrayList<>());
+
+        log.info("Chitchat intent completed");
+        return response;
+    }
+
+    private RagResponse handleClarificationIntent(String question, String sessionId,
+                                                    IntentClassifier.IntentResult intentResult) {
+        String answer;
+        if (intentResult.getReply() != null && !intentResult.getReply().isEmpty()) {
+            answer = intentResult.getReply();
+        } else {
+            answer = "您的问题我还不太明确，能否告诉我您想了解哪方面的信息？"
+                    + "比如：产品信息、订单查询、退换货政策等。";
+        }
+
+        RagResponse response = new RagResponse();
+        response.setAnswer(answer);
+        response.setSessionId(sessionId);
+        response.setCitations(new ArrayList<>());
+
+        log.info("Clarification intent, returned guiding prompt");
+        return response;
     }
 
     /**
