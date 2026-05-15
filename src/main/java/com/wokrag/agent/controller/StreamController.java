@@ -2,6 +2,9 @@ package com.wokrag.agent.controller;
 
 import com.wokrag.agent.model.RagResponse;
 import com.wokrag.agent.service.rag.RagPipeline;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,12 +20,15 @@ import java.util.concurrent.Executors;
 @RestController
 @RequestMapping("/api/rag")
 @RequiredArgsConstructor
+@Tag(name = "RAG Streaming", description = "SSE streaming RAG endpoints")
 public class StreamController {
 
     private final RagPipeline ragPipeline;
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Stream a RAG query via SSE",
+            description = "Submit a question and receive token-by-token streaming response via Server-Sent Events.")
     public SseEmitter stream(@RequestBody StreamRequest request) {
         SseEmitter emitter = new SseEmitter(120_000L);
 
@@ -39,7 +45,7 @@ public class StreamController {
                                             .name("token")
                                             .data(token));
                                 } catch (IOException e) {
-                                    log.warn("SSE send failed: {}", e.getMessage());
+                                    log.warn("SSE send failed", e);
                                 }
                             }
 
@@ -68,20 +74,21 @@ public class StreamController {
                             }
                         });
             } catch (Exception e) {
-                log.error("Streaming execution failed", e);
                 emitter.completeWithError(e);
             }
         });
 
-        emitter.onTimeout(() -> log.warn("SSE timeout for: {}", request.getQuestion()));
-        emitter.onError(e -> log.warn("SSE error: {}", e.getMessage()));
+        emitter.onTimeout(() -> log.warn("SSE timeout for request: {}", request.getQuestion()));
+        emitter.onError(e -> log.warn("SSE error", e));
 
         return emitter;
     }
 
     @Data
     public static class StreamRequest {
+        @Parameter(description = "The question to ask", required = true, example = "退货政策是什么？")
         private String question;
+        @Parameter(description = "Session ID for multi-turn conversation", example = "session-abc123")
         private String sessionId;
     }
 }
