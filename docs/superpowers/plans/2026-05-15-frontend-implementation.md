@@ -1,12 +1,12 @@
-# Frontend Implementation Plan
+# Frontend Implementation Plan (React)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a ChatGPT-style Vue 3 frontend for the wok-rag-agent RAG system with streaming chat, knowledge management, session history, status monitoring, and settings.
+**Goal:** Build a ChatGPT-style React frontend for the wok-rag-agent RAG system with streaming chat, knowledge management, session history, status monitoring, and settings.
 
-**Architecture:** SPA with sidebar navigation layout. Chat page uses SSE streaming via `fetch` + `ReadableStream`. State managed by Pinia. Styling via Tailwind CSS v4 + Headless UI for accessible interactions.
+**Architecture:** SPA with sidebar navigation layout. Chat page uses SSE streaming via `fetch` + `ReadableStream`. State managed by Zustand. Styling via Tailwind CSS v4 + @headlessui/react for accessible interactions.
 
-**Tech Stack:** Vue 3, TypeScript, Vite, Pinia, Vue Router, Tailwind CSS v4, @headlessui/vue, lucide-vue-next
+**Tech Stack:** React 19, TypeScript, Vite, Zustand, React Router v7, Tailwind CSS v4, @headlessui/react, lucide-react
 
 **Backend dependency:** Some pages (Knowledge, History) require backend APIs not yet implemented. These pages will show empty states gracefully when APIs are unavailable. The Chat and Status pages work with existing endpoints.
 
@@ -24,33 +24,30 @@ frontend/src/
 │   └── document.ts            # /api/documents/* endpoints
 ├── components/
 │   ├── layout/
-│   │   ├── AppLayout.vue      # sidebar + main content area
-│   │   └── Sidebar.vue        # navigation + session list
+│   │   ├── AppLayout.tsx      # sidebar + main content area
+│   │   └── Sidebar.tsx        # navigation + session list
 │   ├── chat/
-│   │   ├── MessageBubble.vue  # single message (user or assistant)
-│   │   ├── ChatInput.vue      # textarea + send button
-│   │   └── CitationCard.vue   # expandable citation display
+│   │   ├── MessageBubble.tsx  # single message (user or assistant)
+│   │   ├── ChatInput.tsx      # textarea + send button
+│   │   └── CitationCard.tsx   # expandable citation display
 │   └── common/
-│       ├── StatusCard.vue     # health status indicator card
-│       └── UploadDialog.vue   # file upload modal
-├── views/
-│   ├── ChatView.vue           # main chat page
-│   ├── KnowledgeView.vue      # document management
-│   ├── HistoryView.vue        # session list
-│   ├── StatusView.vue         # health monitoring
-│   └── SettingsView.vue       # app settings
+│       ├── StatusCard.tsx     # health status indicator card
+│       └── UploadDialog.tsx   # file upload modal
+├── pages/
+│   ├── ChatPage.tsx           # main chat page
+│   ├── KnowledgePage.tsx      # document management
+│   ├── HistoryPage.tsx        # session list
+│   ├── StatusPage.tsx         # health monitoring
+│   └── SettingsPage.tsx       # app settings
 ├── stores/
-│   ├── chat.ts                # messages, streaming state, current session
-│   ├── session.ts             # session list management
-│   └── settings.ts            # API URL, theme, language
+│   ├── chatStore.ts           # messages, streaming state, current session
+│   ├── sessionStore.ts        # session list management
+│   └── settingsStore.ts       # API URL, theme, language
 ├── types/
 │   └── index.ts               # all TypeScript interfaces
-├── router/
-│   └── index.ts               # route definitions
-├── assets/
-│   └── main.css               # Tailwind imports + global styles
-├── App.vue
-└── main.ts
+├── App.tsx                    # router setup
+├── main.tsx                   # entry point
+└── index.css                  # Tailwind imports + global styles
 ```
 
 ---
@@ -60,39 +57,34 @@ frontend/src/
 **Files:**
 - Modify: `frontend/package.json`
 - Modify: `frontend/vite.config.ts`
-- Create: `frontend/src/assets/main.css`
-- Modify: `frontend/src/main.ts`
+- Modify: `frontend/src/index.css`
 - Modify: `frontend/index.html`
+- Modify: `frontend/src/main.tsx`
+- Delete: `frontend/src/App.css`, `frontend/src/assets/hero.png`, `frontend/src/assets/react.svg`, `frontend/src/assets/vite.svg`
 
 - [ ] **Step 1: Install npm dependencies**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent/frontend
-npm install @headlessui/vue lucide-vue-next
+npm install react-router-dom zustand @headlessui/react lucide-react
 npm install -D tailwindcss @tailwindcss/vite
 ```
 
-- [ ] **Step 2: Configure Vite with Tailwind plugin**
+- [ ] **Step 2: Configure Vite with Tailwind plugin and API proxy**
 
 Replace `frontend/vite.config.ts`:
 
 ```typescript
-import { fileURLToPath, URL } from 'node:url'
-
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
+import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import path from 'path'
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    vueJsx(),
-    tailwindcss(),
-  ],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': path.resolve(__dirname, './src'),
     },
   },
   server: {
@@ -104,9 +96,41 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 3: Create global CSS with Tailwind and theme variables**
+- [ ] **Step 3: Add path alias to tsconfig.app.json**
 
-Create `frontend/src/assets/main.css`:
+Replace `frontend/tsconfig.app.json`:
+
+```json
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}
+```
+
+- [ ] **Step 4: Replace index.css with Tailwind and theme variables**
+
+Replace `frontend/src/index.css`:
 
 ```css
 @import "tailwindcss";
@@ -135,12 +159,12 @@ Create `frontend/src/assets/main.css`:
 }
 
 body {
+  margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--color-surface);
   color: var(--color-text);
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -153,61 +177,66 @@ body {
 }
 ```
 
-- [ ] **Step 4: Update main.ts to import global styles**
-
-Replace `frontend/src/main.ts`:
-
-```typescript
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-
-import App from './App.vue'
-import router from './router'
-import './assets/main.css'
-
-const app = createApp(App)
-
-app.use(createPinia())
-app.use(router)
-
-app.mount('#app')
-```
-
-- [ ] **Step 5: Update index.html title**
+- [ ] **Step 5: Update index.html**
 
 Replace `frontend/index.html`:
 
 ```html
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Wok RAG Agent</title>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 ```
 
-- [ ] **Step 6: Remove unused files and verify dev server starts**
+- [ ] **Step 6: Remove unused boilerplate files**
 
 ```bash
-rm -f E:/idea_workspace/wok-rag-agent/frontend/src/stores/counter.ts
+rm -f E:/idea_workspace/wok-rag-agent/frontend/src/App.css
+rm -f E:/idea_workspace/wok-rag-agent/frontend/src/assets/hero.png
+rm -f E:/idea_workspace/wok-rag-agent/frontend/src/assets/react.svg
+rm -f E:/idea_workspace/wok-rag-agent/frontend/src/assets/vite.svg
+```
+
+- [ ] **Step 7: Update main.tsx to be clean**
+
+Replace `frontend/src/main.tsx`:
+
+```tsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+```
+
+- [ ] **Step 8: Verify dev server starts**
+
+```bash
 cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
 ```
 
 Expected: Dev server starts on `http://localhost:5173` without errors.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent
 git add frontend/
-git commit -m "feat: setup Tailwind CSS v4, Headless UI, and project foundation"
+git commit -m "feat: setup Tailwind CSS v4, Zustand, React Router, and project foundation"
 ```
 
 ---
@@ -252,12 +281,6 @@ export interface ErrorResponse {
   errorMessage: string
 }
 
-// SSE streaming event types
-export type SSEEvent =
-  | { event: 'token'; data: string }
-  | { event: 'done'; data: RagResponse }
-  | { event: 'error'; data: { message: string } }
-
 // Frontend-only types
 
 export interface Message {
@@ -285,7 +308,6 @@ export interface DocumentInfo {
   chunkCount: number
 }
 
-// Backend session message format (for GET /api/rag/sessions/{id}/messages)
 export interface SessionMessage {
   role: 'user' | 'assistant'
   content: string
@@ -303,7 +325,7 @@ export interface Settings {
 - [ ] **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npx vue-tsc --build --noEmit
+cd E:/idea_workspace/wok-rag-agent/frontend && npx tsc -b
 ```
 
 Expected: No errors.
@@ -330,11 +352,10 @@ git commit -m "feat: add TypeScript type definitions for API and frontend"
 Create `frontend/src/api/client.ts`:
 
 ```typescript
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 function getBaseUrl(): string {
-  const settings = useSettingsStore()
-  return settings.apiUrl
+  return useSettingsStore.getState().settings.apiUrl
 }
 
 export async function apiFetch<T>(
@@ -361,12 +382,11 @@ export async function apiFetch<T>(
   return response.json()
 }
 
-export function apiFetchStream(
+export function createSSEStream(
   path: string,
   body: unknown
 ): ReadableStream<Uint8Array> {
   const url = `${getBaseUrl()}${path}`
-  const encoder = new TextEncoder()
 
   return new ReadableStream({
     async start(controller) {
@@ -381,6 +401,7 @@ export function apiFetchStream(
           const error = await response.json().catch(() => ({
             message: `HTTP ${response.status}`,
           }))
+          const encoder = new TextEncoder()
           controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify(error)}\n\n`))
           controller.close()
           return
@@ -399,6 +420,7 @@ export function apiFetchStream(
         }
         controller.close()
       } catch (err) {
+        const encoder = new TextEncoder()
         const error = { message: err instanceof Error ? err.message : 'Network error' }
         controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify(error)}\n\n`))
         controller.close()
@@ -413,7 +435,7 @@ export function apiFetchStream(
 Create `frontend/src/api/rag.ts`:
 
 ```typescript
-import { apiFetch, apiFetchStream } from './client'
+import { apiFetch, createSSEStream } from './client'
 import type { QueryRequest, RagResponse, HealthResponse, Session, SessionMessage } from '@/types'
 
 export function queryRag(request: QueryRequest): Promise<RagResponse> {
@@ -424,7 +446,7 @@ export function queryRag(request: QueryRequest): Promise<RagResponse> {
 }
 
 export function streamRag(request: QueryRequest): ReadableStream<Uint8Array> {
-  return apiFetchStream('/api/rag/stream', request)
+  return createSSEStream('/api/rag/stream', request)
 }
 
 export function getHealth(): Promise<HealthResponse> {
@@ -434,8 +456,6 @@ export function getHealth(): Promise<HealthResponse> {
 export function getActuatorHealth(): Promise<Record<string, unknown>> {
   return apiFetch<Record<string, unknown>>('/actuator/health')
 }
-
-// --- Backend-dependent APIs (may not exist yet) ---
 
 export async function getSessions(): Promise<Session[]> {
   try {
@@ -467,6 +487,7 @@ Create `frontend/src/api/document.ts`:
 ```typescript
 import { apiFetch } from './client'
 import type { DocumentInfo } from '@/types'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 export async function getDocuments(): Promise<DocumentInfo[]> {
   try {
@@ -482,8 +503,8 @@ export async function uploadDocument(file: File, source?: string): Promise<Docum
   formData.append('file', file)
   if (source) formData.append('source', source)
 
-  const settings = (await import('@/stores/settings')).useSettingsStore()
-  const response = await fetch(`${settings.apiUrl}/api/documents/upload`, {
+  const baseUrl = useSettingsStore.getState().settings.apiUrl
+  const response = await fetch(`${baseUrl}/api/documents/upload`, {
     method: 'POST',
     body: formData,
   })
@@ -507,7 +528,7 @@ export async function deleteDocument(docId: string): Promise<void> {
 - [ ] **Step 4: Verify TypeScript compiles**
 
 ```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npx vue-tsc --build --noEmit
+cd E:/idea_workspace/wok-rag-agent/frontend && npx tsc -b
 ```
 
 Expected: No errors.
@@ -522,20 +543,19 @@ git commit -m "feat: add API client layer with fetch wrapper and SSE streaming"
 
 ---
 
-### Task 4: Create Pinia Stores
+### Task 4: Create Zustand Stores
 
 **Files:**
-- Create: `frontend/src/stores/settings.ts`
-- Create: `frontend/src/stores/chat.ts`
-- Create: `frontend/src/stores/session.ts`
+- Create: `frontend/src/stores/settingsStore.ts`
+- Create: `frontend/src/stores/chatStore.ts`
+- Create: `frontend/src/stores/sessionStore.ts`
 
 - [ ] **Step 1: Create settings store**
 
-Create `frontend/src/stores/settings.ts`:
+Create `frontend/src/stores/settingsStore.ts`:
 
 ```typescript
-import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { create } from 'zustand'
 import type { Settings } from '@/types'
 
 const STORAGE_KEY = 'wok-rag-settings'
@@ -544,7 +564,7 @@ function loadSettings(): Settings {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored) {
     try {
-      return JSON.parse(stored)
+      return JSON.parse(stored) as Settings
     } catch {
       // ignore
     }
@@ -556,193 +576,96 @@ function loadSettings(): Settings {
   }
 }
 
-export const useSettingsStore = defineStore('settings', () => {
-  const settings = ref<Settings>(loadSettings())
+function persist(settings: Settings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+}
 
-  function updateTheme(theme: 'light' | 'dark') {
-    settings.value.theme = theme
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }
+interface SettingsState {
+  settings: Settings
+  updateTheme: (theme: 'light' | 'dark') => void
+  updateApiUrl: (url: string) => void
+  updateLanguage: (lang: 'zh' | 'en') => void
+}
 
-  function updateApiUrl(url: string) {
-    settings.value.apiUrl = url
-  }
-
-  function updateLanguage(lang: 'zh' | 'en') {
-    settings.value.language = lang
-  }
-
-  // Persist to localStorage on change
-  watch(settings, (val) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
-  }, { deep: true })
+export const useSettingsStore = create<SettingsState>()((set) => {
+  const initial = loadSettings()
 
   // Apply theme on init
-  if (settings.value.theme === 'dark') {
+  if (initial.theme === 'dark') {
     document.documentElement.classList.add('dark')
   }
 
-  return { settings, updateTheme, updateApiUrl, updateLanguage }
+  return {
+    settings: initial,
+    updateTheme: (theme) =>
+      set((state) => {
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+        const next = { ...state.settings, theme }
+        persist(next)
+        return { settings: next }
+      }),
+    updateApiUrl: (url) =>
+      set((state) => {
+        const next = { ...state.settings, apiUrl: url }
+        persist(next)
+        return { settings: next }
+      }),
+    updateLanguage: (lang) =>
+      set((state) => {
+        const next = { ...state.settings, language: lang }
+        persist(next)
+        return { settings: next }
+      }),
+  }
 })
 ```
 
 - [ ] **Step 2: Create chat store**
 
-Create `frontend/src/stores/chat.ts`:
+Create `frontend/src/stores/chatStore.ts`:
 
 ```typescript
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { v4 as uuidv4 } from 'crypto'  // will use crypto.randomUUID()
-import type { Message, Citation, RagResponse } from '@/types'
+import { create } from 'zustand'
+import type { Message, RagResponse } from '@/types'
 import { streamRag } from '@/api/rag'
 
-export const useChatStore = defineStore('chat', () => {
-  const messages = ref<Message[]>([])
-  const currentSessionId = ref<string | null>(null)
-  const isStreaming = ref(false)
-  const streamingContent = ref('')
-  const error = ref<string | null>(null)
+interface ChatState {
+  messages: Message[]
+  currentSessionId: string | null
+  isStreaming: boolean
+  streamingContent: string
+  sendMessage: (question: string) => Promise<void>
+  clearMessages: () => void
+  loadSession: (sessionId: string, messages: Message[]) => void
+}
 
-  const hasMessages = computed(() => messages.value.length > 0)
+function generateId(): string {
+  return crypto.randomUUID()
+}
 
-  function generateId(): string {
-    return crypto.randomUUID()
-  }
+function generateSessionId(): string {
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
 
-  function generateSessionId(): string {
-    return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  }
+export const useChatStore = create<ChatState>()((set, get) => ({
+  messages: [],
+  currentSessionId: null,
+  isStreaming: false,
+  streamingContent: '',
 
-  function clearMessages() {
-    messages.value = []
-    currentSessionId.value = null
-    error.value = null
-  }
+  clearMessages: () =>
+    set({ messages: [], currentSessionId: null }),
 
-  function loadSession(sessionId: string, sessionMessages: Message[]) {
-    currentSessionId.value = sessionId
-    messages.value = sessionMessages
-    error.value = null
-  }
+  loadSession: (sessionId, messages) =>
+    set({ currentSessionId: sessionId, messages }),
 
-  async function sendMessage(question: string) {
-    if (isStreaming.value || !question.trim()) return
-
-    error.value = null
-
-    // Add user message
-    const userMessage: Message = {
-      id: generateId(),
-      role: 'user',
-      content: question.trim(),
-      citations: [],
-      timestamp: Date.now(),
-    }
-    messages.value.push(userMessage)
-
-    // Ensure session ID exists
-    if (!currentSessionId.value) {
-      currentSessionId.value = generateSessionId()
-    }
-
-    // Create placeholder assistant message
-    const assistantMessage: Message = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      citations: [],
-      timestamp: Date.now(),
-    }
-    messages.value.push(assistantMessage)
-
-    isStreaming.value = true
-    streamingContent.value = ''
-
-    try {
-      const stream = streamRag({
-        question: question.trim(),
-        sessionId: currentSessionId.value,
-      })
-
-      const reader = stream.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            const eventType = line.slice(7).trim()
-            // Next line should be data
-            continue
-          }
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-
-            // Determine event type from preceding event line
-            // We need to track the current event type
-            // Re-parse: look at the raw buffer more carefully
-            handleSSELine(data, assistantMessage)
-          }
-        }
-      }
-
-      // Process any remaining buffer
-      if (buffer.startsWith('data: ')) {
-        handleSSELine(buffer.slice(6), assistantMessage)
-      }
-    } catch (err) {
-      assistantMessage.error = err instanceof Error ? err.message : 'Unknown error'
-    } finally {
-      isStreaming.value = false
-      streamingContent.value = ''
-    }
-  }
-
-  // Track current event type for proper parsing
-  let currentEventType = ''
-
-  function handleSSEData(eventType: string, data: string, msg: Message) {
-    if (eventType === 'token') {
-      msg.content += data
-      streamingContent.value = msg.content
-    } else if (eventType === 'done') {
-      try {
-        const response: RagResponse = JSON.parse(data)
-        msg.content = response.answer
-        msg.citations = response.citations || []
-        if (response.sessionId) {
-          currentSessionId.value = response.sessionId
-        }
-      } catch {
-        // Keep accumulated tokens as content
-      }
-    } else if (eventType === 'error') {
-      try {
-        const errData = JSON.parse(data)
-        msg.error = errData.message || 'Stream error'
-      } catch {
-        msg.error = 'Stream error'
-      }
-    }
-  }
-
-  // Proper SSE parser that tracks event type
-  async function sendMessageProper(question: string) {
-    if (isStreaming.value || !question.trim()) return
-
-    error.value = null
+  sendMessage: async (question: string) => {
+    const state = get()
+    if (state.isStreaming || !question.trim()) return
 
     const userMessage: Message = {
       id: generateId(),
@@ -750,11 +673,6 @@ export const useChatStore = defineStore('chat', () => {
       content: question.trim(),
       citations: [],
       timestamp: Date.now(),
-    }
-    messages.value.push(userMessage)
-
-    if (!currentSessionId.value) {
-      currentSessionId.value = generateSessionId()
     }
 
     const assistantMessage: Message = {
@@ -764,15 +682,20 @@ export const useChatStore = defineStore('chat', () => {
       citations: [],
       timestamp: Date.now(),
     }
-    messages.value.push(assistantMessage)
 
-    isStreaming.value = true
-    streamingContent.value = ''
+    const sessionId = state.currentSessionId || generateSessionId()
+
+    set({
+      messages: [...state.messages, userMessage, assistantMessage],
+      currentSessionId: sessionId,
+      isStreaming: true,
+      streamingContent: '',
+    })
 
     try {
       const stream = streamRag({
         question: question.trim(),
-        sessionId: currentSessionId.value,
+        sessionId,
       })
 
       const reader = stream.getReader()
@@ -793,117 +716,156 @@ export const useChatStore = defineStore('chat', () => {
             eventType = line.slice(7).trim()
           } else if (line.startsWith('data: ')) {
             const data = line.slice(6)
-            handleSSEData(eventType, data, assistantMessage)
-            eventType = 'token' // reset
+
+            set((state) => {
+              const msgs = [...state.messages]
+              const lastMsg = msgs[msgs.length - 1]
+              if (!lastMsg || lastMsg.role !== 'assistant') return state
+
+              if (eventType === 'token') {
+                lastMsg.content += data
+                return { messages: msgs, streamingContent: lastMsg.content }
+              } else if (eventType === 'done') {
+                try {
+                  const response = JSON.parse(data) as RagResponse
+                  lastMsg.content = response.answer
+                  lastMsg.citations = response.citations || []
+                  return {
+                    messages: msgs,
+                    currentSessionId: response.sessionId || state.currentSessionId,
+                  }
+                } catch {
+                  return state
+                }
+              } else if (eventType === 'error') {
+                try {
+                  const errData = JSON.parse(data) as { message: string }
+                  lastMsg.error = errData.message || 'Stream error'
+                } catch {
+                  lastMsg.error = 'Stream error'
+                }
+                return { messages: msgs }
+              }
+
+              return state
+            })
+
+            eventType = 'token'
           }
         }
       }
     } catch (err) {
-      assistantMessage.error = err instanceof Error ? err.message : 'Unknown error'
+      set((state) => {
+        const msgs = [...state.messages]
+        const lastMsg = msgs[msgs.length - 1]
+        if (lastMsg && lastMsg.role === 'assistant') {
+          lastMsg.error = err instanceof Error ? err.message : 'Unknown error'
+        }
+        return { messages: msgs }
+      })
     } finally {
-      isStreaming.value = false
-      streamingContent.value = ''
+      set({ isStreaming: false, streamingContent: '' })
     }
-  }
-
-  return {
-    messages,
-    currentSessionId,
-    isStreaming,
-    streamingContent,
-    error,
-    hasMessages,
-    clearMessages,
-    loadSession,
-    sendMessage: sendMessageProper,
-  }
-})
+  },
+}))
 ```
 
 - [ ] **Step 3: Create session store**
 
-Create `frontend/src/stores/session.ts`:
+Create `frontend/src/stores/sessionStore.ts`:
 
 ```typescript
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { create } from 'zustand'
 import type { Session } from '@/types'
 import { getSessions, deleteSession as apiDeleteSession } from '@/api/rag'
 
-export const useSessionStore = defineStore('session', () => {
-  const sessions = ref<Session[]>([])
-  const loading = ref(false)
+interface SessionState {
+  sessions: Session[]
+  loading: boolean
+  fetchSessions: () => Promise<void>
+  removeSession: (sessionId: string) => Promise<void>
+  addLocalSession: (sessionId: string, title: string) => void
+}
 
-  async function fetchSessions() {
-    loading.value = true
+export const useSessionStore = create<SessionState>()((set) => ({
+  sessions: [],
+  loading: false,
+
+  fetchSessions: async () => {
+    set({ loading: true })
     try {
-      sessions.value = await getSessions()
+      const sessions = await getSessions()
+      set({ sessions })
     } finally {
-      loading.value = false
+      set({ loading: false })
     }
-  }
+  },
 
-  async function removeSession(sessionId: string) {
+  removeSession: async (sessionId: string) => {
     try {
       await apiDeleteSession(sessionId)
-      sessions.value = sessions.value.filter(s => s.sessionId !== sessionId)
+      set((state) => ({
+        sessions: state.sessions.filter((s) => s.sessionId !== sessionId),
+      }))
     } catch {
       // Silently fail if backend doesn't support this yet
     }
-  }
+  },
 
-  // Add a session entry locally (when backend doesn't have list API yet)
-  function addLocalSession(sessionId: string, title: string) {
-    if (!sessions.value.find(s => s.sessionId === sessionId)) {
-      sessions.value.unshift({
-        sessionId,
-        title,
-        lastMessage: '',
-        lastTime: new Date().toISOString(),
-        messageCount: 0,
-      })
-    }
-  }
-
-  return { sessions, loading, fetchSessions, removeSession, addLocalSession }
-})
+  addLocalSession: (sessionId: string, title: string) => {
+    set((state) => {
+      if (state.sessions.find((s) => s.sessionId === sessionId)) return state
+      return {
+        sessions: [
+          {
+            sessionId,
+            title,
+            lastMessage: '',
+            lastTime: new Date().toISOString(),
+            messageCount: 0,
+          },
+          ...state.sessions,
+        ],
+      }
+    })
+  },
+}))
 ```
 
 - [ ] **Step 4: Verify TypeScript compiles**
 
 ```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npx vue-tsc --build --noEmit
+cd E:/idea_workspace/wok-rag-agent/frontend && npx tsc -b
 ```
 
-Expected: No errors. (The `handleSSEData` function reference inside `sendMessage` may need adjustment — the final version should use `sendMessageProper`.)
+Expected: No errors.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent
 git add frontend/src/stores/
-git commit -m "feat: add Pinia stores for settings, chat, and session management"
+git commit -m "feat: add Zustand stores for settings, chat, and session management"
 ```
 
 ---
 
-### Task 5: Build Layout Components (Sidebar + AppLayout)
+### Task 5: Build Layout and Router
 
 **Files:**
-- Create: `frontend/src/components/layout/AppLayout.vue`
-- Create: `frontend/src/components/layout/Sidebar.vue`
-- Modify: `frontend/src/App.vue`
+- Create: `frontend/src/components/layout/Sidebar.tsx`
+- Create: `frontend/src/components/layout/AppLayout.tsx`
+- Modify: `frontend/src/App.tsx`
 
 - [ ] **Step 1: Create Sidebar component**
 
-Create `frontend/src/components/layout/Sidebar.vue`:
+Create `frontend/src/components/layout/Sidebar.tsx`:
 
-```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useChatStore } from '@/stores/chat'
-import { useSessionStore } from '@/stores/session'
+```tsx
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useChatStore } from '@/stores/chatStore'
+import { useSessionStore } from '@/stores/sessionStore'
 import {
   MessageSquare,
   Database,
@@ -914,267 +876,289 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Trash2,
-} from 'lucide-vue-next'
+  Menu,
+} from 'lucide-react'
 
-const router = useRouter()
-const route = useRoute()
-const chatStore = useChatStore()
-const sessionStore = useSessionStore()
+export default function Sidebar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { currentSessionId, clearMessages } = useChatStore()
+  const { sessions, removeSession } = useSessionStore()
+  const [collapsed, setCollapsed] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
-const collapsed = ref(false)
+  useEffect(() => {
+    const check = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (mobile) setCollapsed(true)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
-const navItems = [
-  { path: '/knowledge', label: '知识库', icon: Database },
-  { path: '/history', label: '会话历史', icon: History },
-  { path: '/status', label: '系统状态', icon: Activity },
-  { path: '/settings', label: '设置', icon: Settings },
-]
+  const navItems = [
+    { path: '/knowledge', label: '知识库', icon: Database },
+    { path: '/history', label: '会话历史', icon: History },
+    { path: '/status', label: '系统状态', icon: Activity },
+    { path: '/settings', label: '设置', icon: Settings },
+  ]
 
-function newChat() {
-  chatStore.clearMessages()
-  router.push('/chat')
-}
+  function newChat() {
+    clearMessages()
+    navigate('/chat')
+  }
 
-function openSession(sessionId: string) {
-  router.push(`/chat/${sessionId}`)
-}
+  function isActive(path: string): boolean {
+    return location.pathname === path || location.pathname.startsWith(path + '/')
+  }
 
-function isActive(path: string): boolean {
-  return route.path === path || route.path.startsWith(path + '/')
-}
-</script>
+  return (
+    <>
+      {/* Mobile overlay */}
+      {isMobile && !collapsed && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 md:hidden"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
 
-<template>
-  <aside
-    class="flex flex-col h-screen border-r border-border bg-surface-secondary transition-all duration-300"
-    :class="collapsed ? 'w-16' : 'w-64'"
-  >
-    <!-- Header -->
-    <div class="flex items-center justify-between p-3 border-b border-border">
-      <span v-if="!collapsed" class="text-sm font-semibold text-text truncate">
-        Wok RAG Agent
-      </span>
-      <button
-        @click="collapsed = !collapsed"
-        class="p-1.5 rounded-lg hover:bg-border/50 text-text-secondary"
-      >
-        <PanelLeftClose v-if="!collapsed" :size="18" />
-        <PanelLeftOpen v-else :size="18" />
-      </button>
-    </div>
-
-    <!-- New Chat Button -->
-    <div class="p-2">
-      <button
-        @click="newChat"
-        class="flex items-center gap-2 w-full p-2.5 rounded-lg border border-border
-               hover:bg-border/50 text-text text-sm transition-colors"
-        :class="collapsed ? 'justify-center' : ''"
-      >
-        <Plus :size="18" />
-        <span v-if="!collapsed">新建对话</span>
-      </button>
-    </div>
-
-    <!-- Session List -->
-    <div v-if="!collapsed" class="flex-1 overflow-y-auto px-2 space-y-0.5">
-      <div v-if="sessionStore.sessions.length === 0" class="p-3 text-text-secondary text-xs text-center">
-        暂无会话
-      </div>
-      <button
-        v-for="session in sessionStore.sessions"
-        :key="session.sessionId"
-        @click="openSession(session.sessionId)"
-        class="flex items-center justify-between w-full p-2 rounded-lg text-sm text-left
-               hover:bg-border/50 transition-colors group"
-        :class="chatStore.currentSessionId === session.sessionId ? 'bg-border/50' : ''"
-      >
-        <div class="flex items-center gap-2 min-w-0">
-          <MessageSquare :size="16" class="shrink-0 text-text-secondary" />
-          <span class="truncate text-text">{{ session.title }}</span>
-        </div>
+      {/* Mobile hamburger */}
+      {isMobile && collapsed && (
         <button
-          @click.stop="sessionStore.removeSession(session.sessionId)"
-          class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-error/10 text-text-secondary hover:text-error"
+          onClick={() => setCollapsed(false)}
+          className="fixed top-3 left-3 z-30 p-2 rounded-lg bg-surface border border-border text-text-secondary hover:bg-surface-secondary"
         >
-          <Trash2 :size="14" />
+          <Menu size={18} />
         </button>
-      </button>
-    </div>
+      )}
 
-    <!-- Navigation -->
-    <nav class="border-t border-border p-2 space-y-0.5">
-      <router-link
-        v-for="item in navItems"
-        :key="item.path"
-        :to="item.path"
-        class="flex items-center gap-2 p-2 rounded-lg text-sm transition-colors"
-        :class="[
-          isActive(item.path) ? 'bg-border/50 text-text' : 'text-text-secondary hover:bg-border/30',
-          collapsed ? 'justify-center' : '',
-        ]"
+      <aside
+        className={`flex flex-col h-screen border-r border-border bg-surface-secondary transition-all duration-300 z-50 ${
+          collapsed ? 'w-16' : 'w-64'
+        } ${isMobile && collapsed ? '-translate-x-full' : ''}`}
       >
-        <component :is="item.icon" :size="18" />
-        <span v-if="!collapsed">{{ item.label }}</span>
-      </router-link>
-    </nav>
-  </aside>
-</template>
+        {/* Header */}
+        <div className="flex items-center justify-between p-3 border-b border-border">
+          {!collapsed && (
+            <span className="text-sm font-semibold text-text truncate">Wok RAG Agent</span>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1.5 rounded-lg hover:bg-border/50 text-text-secondary"
+          >
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+        </div>
+
+        {/* New Chat Button */}
+        <div className="p-2">
+          <button
+            onClick={newChat}
+            className={`flex items-center gap-2 w-full p-2.5 rounded-lg border border-border hover:bg-border/50 text-text text-sm transition-colors ${
+              collapsed ? 'justify-center' : ''
+            }`}
+          >
+            <Plus size={18} />
+            {!collapsed && <span>新建对话</span>}
+          </button>
+        </div>
+
+        {/* Session List */}
+        {!collapsed && (
+          <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
+            {sessions.length === 0 ? (
+              <div className="p-3 text-text-secondary text-xs text-center">暂无会话</div>
+            ) : (
+              sessions.map((session) => (
+                <button
+                  key={session.sessionId}
+                  onClick={() => navigate(`/chat/${session.sessionId}`)}
+                  className={`flex items-center justify-between w-full p-2 rounded-lg text-sm text-left hover:bg-border/50 transition-colors group ${
+                    currentSessionId === session.sessionId ? 'bg-border/50' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MessageSquare size={16} className="shrink-0 text-text-secondary" />
+                    <span className="truncate text-text">{session.title}</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void removeSession(session.sessionId)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-error/10 text-text-secondary hover:text-error"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="border-t border-border p-2 space-y-0.5">
+          {navItems.map((item) => (
+            <button
+              key={item.path}
+              onClick={() => {
+                navigate(item.path)
+                if (isMobile) setCollapsed(true)
+              }}
+              className={`flex items-center gap-2 w-full p-2 rounded-lg text-sm transition-colors ${
+                collapsed ? 'justify-center' : ''
+              } ${
+                isActive(item.path)
+                  ? 'bg-border/50 text-text'
+                  : 'text-text-secondary hover:bg-border/30'
+              }`}
+            >
+              <item.icon size={18} />
+              {!collapsed && <span>{item.label}</span>}
+            </button>
+          ))}
+        </nav>
+      </aside>
+    </>
+  )
+}
 ```
 
 - [ ] **Step 2: Create AppLayout component**
 
-Create `frontend/src/components/layout/AppLayout.vue`:
+Create `frontend/src/components/layout/AppLayout.tsx`:
 
-```vue
-<script setup lang="ts">
-import Sidebar from './Sidebar.vue'
-</script>
+```tsx
+import { Outlet } from 'react-router-dom'
+import Sidebar from './Sidebar'
 
-<template>
-  <div class="flex h-screen overflow-hidden bg-surface">
-    <Sidebar />
-    <main class="flex-1 overflow-hidden">
-      <router-view />
-    </main>
-  </div>
-</template>
+export default function AppLayout() {
+  return (
+    <div className="flex h-screen overflow-hidden bg-surface">
+      <Sidebar />
+      <main className="flex-1 overflow-hidden">
+        <Outlet />
+      </main>
+    </div>
+  )
+}
 ```
 
-- [ ] **Step 3: Update App.vue to use layout**
+- [ ] **Step 3: Set up router in App.tsx**
 
-Replace `frontend/src/App.vue`:
+Replace `frontend/src/App.tsx`:
 
-```vue
-<script setup lang="ts">
-import AppLayout from './components/layout/AppLayout.vue'
-</script>
+```tsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import AppLayout from '@/components/layout/AppLayout'
+import ChatPage from '@/pages/ChatPage'
+import KnowledgePage from '@/pages/KnowledgePage'
+import HistoryPage from '@/pages/HistoryPage'
+import StatusPage from '@/pages/StatusPage'
+import SettingsPage from '@/pages/SettingsPage'
 
-<template>
-  <AppLayout />
-</template>
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat/:sessionId" element={<ChatPage />} />
+          <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}
 ```
 
-- [ ] **Step 4: Set up router with all routes**
+- [ ] **Step 4: Create placeholder page components**
 
-Replace `frontend/src/router/index.ts`:
+Create `frontend/src/pages/ChatPage.tsx`:
 
-```typescript
-import { createRouter, createWebHistory } from 'vue-router'
-
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-      redirect: '/chat',
-    },
-    {
-      path: '/chat',
-      name: 'chat',
-      component: () => import('@/views/ChatView.vue'),
-    },
-    {
-      path: '/chat/:sessionId',
-      name: 'chat-session',
-      component: () => import('@/views/ChatView.vue'),
-    },
-    {
-      path: '/knowledge',
-      name: 'knowledge',
-      component: () => import('@/views/KnowledgeView.vue'),
-    },
-    {
-      path: '/history',
-      name: 'history',
-      component: () => import('@/views/HistoryView.vue'),
-    },
-    {
-      path: '/status',
-      name: 'status',
-      component: () => import('@/views/StatusView.vue'),
-    },
-    {
-      path: '/settings',
-      name: 'settings',
-      component: () => import('@/views/SettingsView.vue'),
-    },
-  ],
-})
-
-export default router
+```tsx
+export default function ChatPage() {
+  return (
+    <div className="flex items-center justify-center h-full text-text-secondary">
+      Chat Page - Coming soon
+    </div>
+  )
+}
 ```
 
-- [ ] **Step 5: Create placeholder view components**
+Create `frontend/src/pages/KnowledgePage.tsx`:
 
-Create `frontend/src/views/ChatView.vue`:
-
-```vue
-<template>
-  <div class="flex items-center justify-center h-full text-text-secondary">
-    Chat View - Coming soon
-  </div>
-</template>
+```tsx
+export default function KnowledgePage() {
+  return (
+    <div className="flex items-center justify-center h-full text-text-secondary">
+      Knowledge Page - Coming soon
+    </div>
+  )
+}
 ```
 
-Create `frontend/src/views/KnowledgeView.vue`:
+Create `frontend/src/pages/HistoryPage.tsx`:
 
-```vue
-<template>
-  <div class="flex items-center justify-center h-full text-text-secondary">
-    Knowledge View - Coming soon
-  </div>
-</template>
+```tsx
+export default function HistoryPage() {
+  return (
+    <div className="flex items-center justify-center h-full text-text-secondary">
+      History Page - Coming soon
+    </div>
+  )
+}
 ```
 
-Create `frontend/src/views/HistoryView.vue`:
+Create `frontend/src/pages/StatusPage.tsx`:
 
-```vue
-<template>
-  <div class="flex items-center justify-center h-full text-text-secondary">
-    History View - Coming soon
-  </div>
-</template>
+```tsx
+export default function StatusPage() {
+  return (
+    <div className="flex items-center justify-center h-full text-text-secondary">
+      Status Page - Coming soon
+    </div>
+  )
+}
 ```
 
-Create `frontend/src/views/StatusView.vue`:
+Create `frontend/src/pages/SettingsPage.tsx`:
 
-```vue
-<template>
-  <div class="flex items-center justify-center h-full text-text-secondary">
-    Status View - Coming soon
-  </div>
-</template>
+```tsx
+export default function SettingsPage() {
+  return (
+    <div className="flex items-center justify-center h-full text-text-secondary">
+      Settings Page - Coming soon
+    </div>
+  )
+}
 ```
 
-Create `frontend/src/views/SettingsView.vue`:
-
-```vue
-<template>
-  <div class="flex items-center justify-center h-full text-text-secondary">
-    Settings View - Coming soon
-  </div>
-</template>
-```
-
-- [ ] **Step 6: Verify dev server shows sidebar and routes work**
+- [ ] **Step 5: Verify dev server and routing**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
 ```
 
-Open `http://localhost:5173` in browser. Verify:
+Open `http://localhost:5173`. Verify:
 - Sidebar appears with navigation
 - Clicking nav items changes the main content area
 - "New Chat" button navigates to `/chat`
 - Sidebar collapses/expands
+- Mobile view (< 768px) auto-collapses sidebar
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent
-git add frontend/src/components/ frontend/src/views/ frontend/src/App.vue frontend/src/router/
-git commit -m "feat: add sidebar layout, router, and placeholder views"
+git add frontend/src/
+git commit -m "feat: add sidebar layout, router, and placeholder pages"
 ```
 
 ---
@@ -1182,533 +1166,961 @@ git commit -m "feat: add sidebar layout, router, and placeholder views"
 ### Task 6: Build Chat Page — Messages and Input
 
 **Files:**
-- Create: `frontend/src/components/chat/MessageBubble.vue`
-- Create: `frontend/src/components/chat/ChatInput.vue`
-- Modify: `frontend/src/views/ChatView.vue`
+- Create: `frontend/src/components/chat/CitationCard.tsx`
+- Create: `frontend/src/components/chat/MessageBubble.tsx`
+- Create: `frontend/src/components/chat/ChatInput.tsx`
+- Modify: `frontend/src/pages/ChatPage.tsx`
 
-- [ ] **Step 1: Create MessageBubble component**
+- [ ] **Step 1: Create CitationCard component**
 
-Create `frontend/src/components/chat/MessageBubble.vue`:
+Create `frontend/src/components/chat/CitationCard.tsx`:
 
-```vue
-<script setup lang="ts">
-import type { Message } from '@/types'
-import CitationCard from './CitationCard.vue'
-import { User, Bot } from 'lucide-vue-next'
+```tsx
+import { useState } from 'react'
+import type { Citation } from '@/types'
+import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 
-defineProps<{
-  message: Message
-}>()
-</script>
+interface Props {
+  citation: Citation
+}
 
-<template>
-  <div
-    class="flex gap-3 py-4 px-4"
-    :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
-  >
-    <!-- Avatar (assistant only) -->
-    <div
-      v-if="message.role === 'assistant'"
-      class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"
-    >
-      <Bot :size="16" class="text-white" />
+export default function CitationCard({ citation }: Props) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="rounded-lg bg-surface border border-border text-xs">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center justify-between w-full p-2 hover:bg-border/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">
+            {citation.index}
+          </span>
+          <span className="text-text-secondary truncate">{citation.source}</span>
+        </div>
+        {expanded ? <ChevronUp size={14} className="text-text-secondary" /> : <ChevronDown size={14} className="text-text-secondary" />}
+      </button>
+
+      {expanded && (
+        <div className="px-2 pb-2 border-t border-border">
+          <p className="mt-2 text-text-secondary leading-relaxed">{citation.chunkContent}</p>
+          {citation.sourceUrl && (
+            <a
+              href={citation.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 mt-2 text-primary hover:underline"
+            >
+              <ExternalLink size={12} />
+              查看来源
+            </a>
+          )}
+        </div>
+      )}
     </div>
-
-    <!-- Message content -->
-    <div
-      class="max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
-      :class="message.role === 'user'
-        ? 'bg-user-bubble text-text'
-        : 'bg-surface-secondary text-text'"
-    >
-      <!-- Error state -->
-      <div v-if="message.error" class="text-error">
-        {{ message.error }}
-      </div>
-
-      <!-- Normal content -->
-      <div v-else class="whitespace-pre-wrap">{{ message.content }}</div>
-
-      <!-- Citations -->
-      <div v-if="message.citations.length > 0" class="mt-3 pt-3 border-t border-border space-y-2">
-        <CitationCard
-          v-for="citation in message.citations"
-          :key="citation.index"
-          :citation="citation"
-        />
-      </div>
-    </div>
-
-    <!-- Avatar (user only) -->
-    <div
-      v-if="message.role === 'user'"
-      class="w-8 h-8 rounded-full bg-user-bubble flex items-center justify-center shrink-0"
-    >
-      <User :size="16" class="text-text-secondary" />
-    </div>
-  </div>
-</template>
+  )
+}
 ```
 
-- [ ] **Step 2: Create CitationCard component**
+- [ ] **Step 2: Create MessageBubble component**
 
-Create `frontend/src/components/chat/CitationCard.vue`:
+Create `frontend/src/components/chat/MessageBubble.tsx`:
 
-```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-import type { Citation } from '@/types'
-import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-vue-next'
+```tsx
+import type { Message } from '@/types'
+import CitationCard from './CitationCard'
+import { User, Bot } from 'lucide-react'
 
-defineProps<{
-  citation: Citation
-}>()
+interface Props {
+  message: Message
+}
 
-const expanded = ref(false)
-</script>
+export default function MessageBubble({ message }: Props) {
+  const isUser = message.role === 'user'
 
-<template>
-  <div class="rounded-lg bg-surface border border-border text-xs">
-    <button
-      @click="expanded = !expanded"
-      class="flex items-center justify-between w-full p-2 hover:bg-border/30 transition-colors"
-    >
-      <div class="flex items-center gap-2">
-        <span class="w-5 h-5 rounded bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">
-          {{ citation.index }}
-        </span>
-        <span class="text-text-secondary truncate">{{ citation.source }}</span>
-      </div>
-      <ChevronUp v-if="expanded" :size="14" class="text-text-secondary" />
-      <ChevronDown v-else :size="14" class="text-text-secondary" />
-    </button>
+  return (
+    <div className={`flex gap-3 py-4 px-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
+      {/* Avatar (assistant only) */}
+      {!isUser && (
+        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+          <Bot size={16} className="text-white" />
+        </div>
+      )}
 
-    <div v-if="expanded" class="px-2 pb-2 border-t border-border">
-      <p class="mt-2 text-text-secondary leading-relaxed">{{ citation.chunkContent }}</p>
-      <a
-        v-if="citation.sourceUrl"
-        :href="citation.sourceUrl"
-        target="_blank"
-        class="flex items-center gap-1 mt-2 text-primary hover:underline"
+      {/* Message content */}
+      <div
+        className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          isUser ? 'bg-user-bubble text-text' : 'bg-surface-secondary text-text'
+        }`}
       >
-        <ExternalLink :size="12" />
-        查看来源
-      </a>
+        {message.error ? (
+          <div className="text-error">{message.error}</div>
+        ) : (
+          <div className="whitespace-pre-wrap">{message.content}</div>
+        )}
+
+        {/* Citations */}
+        {message.citations.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-border space-y-2">
+            {message.citations.map((citation) => (
+              <CitationCard key={citation.index} citation={citation} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Avatar (user only) */}
+      {isUser && (
+        <div className="w-8 h-8 rounded-full bg-user-bubble flex items-center justify-center shrink-0">
+          <User size={16} className="text-text-secondary" />
+        </div>
+      )}
     </div>
-  </div>
-</template>
+  )
+}
 ```
 
 - [ ] **Step 3: Create ChatInput component**
 
-Create `frontend/src/components/chat/ChatInput.vue`:
+Create `frontend/src/components/chat/ChatInput.tsx`:
 
-```vue
-<script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { Send } from 'lucide-vue-next'
+```tsx
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Send } from 'lucide-react'
 
-const emit = defineEmits<{
-  send: [question: string]
-}>()
-
-defineProps<{
+interface Props {
   disabled: boolean
-}>()
+  onSend: (question: string) => void
+}
 
-const input = ref('')
-const textareaRef = ref<HTMLTextAreaElement>()
+export default function ChatInput({ disabled, onSend }: Props) {
+  const [input, setInput] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-function handleSend() {
-  if (input.value.trim()) {
-    emit('send', input.value)
-    input.value = ''
-    adjustHeight()
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+  }, [])
+
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
+
+  function handleSend() {
+    if (input.trim()) {
+      onSend(input)
+      setInput('')
+      requestAnimationFrame(() => adjustHeight())
+    }
   }
-}
 
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    handleSend()
+  function handleKeydown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
-}
 
-function adjustHeight() {
-  const el = textareaRef.value
-  if (!el) return
-  el.style.height = 'auto'
-  el.style.height = Math.min(el.scrollHeight, 200) + 'px'
-}
-
-onMounted(() => {
-  textareaRef.value?.focus()
-})
-</script>
-
-<template>
-  <div class="border-t border-border bg-surface p-4">
-    <div class="max-w-3xl mx-auto">
-      <div class="flex items-end gap-2 rounded-xl border border-border bg-surface-secondary p-2">
-        <textarea
-          ref="textareaRef"
-          v-model="input"
-          @keydown="handleKeydown"
-          @input="adjustHeight"
-          placeholder="输入你的问题... (Enter 发送, Shift+Enter 换行)"
-          rows="1"
-          class="flex-1 bg-transparent resize-none px-2 py-1.5 text-sm text-text
-                 placeholder:text-text-secondary focus:outline-none"
-          style="max-height: 200px"
-        />
-        <button
-          @click="handleSend"
-          :disabled="disabled || !input.trim()"
-          class="p-2 rounded-lg bg-primary text-white hover:bg-primary-hover
-                 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <Send :size="18" />
-        </button>
+  return (
+    <div className="border-t border-border bg-surface p-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-end gap-2 rounded-xl border border-border bg-surface-secondary p-2">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value)
+              adjustHeight()
+            }}
+            onKeyDown={handleKeydown}
+            placeholder="输入你的问题... (Enter 发送, Shift+Enter 换行)"
+            rows={1}
+            className="flex-1 bg-transparent resize-none px-2 py-1.5 text-sm text-text placeholder:text-text-secondary focus:outline-none"
+            style={{ maxHeight: '200px' }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={disabled || !input.trim()}
+            className="p-2 rounded-lg bg-primary text-white hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Send size={18} />
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-</template>
+  )
+}
 ```
 
-- [ ] **Step 4: Implement ChatView**
+- [ ] **Step 4: Implement ChatPage**
 
-Replace `frontend/src/views/ChatView.vue`:
+Replace `frontend/src/pages/ChatPage.tsx`:
 
-```vue
-<script setup lang="ts">
-import { watch, nextTick, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { useChatStore } from '@/stores/chat'
-import { useSessionStore } from '@/stores/session'
-import MessageBubble from '@/components/chat/MessageBubble.vue'
-import ChatInput from '@/components/chat/ChatInput.vue'
-import { MessageSquare } from 'lucide-vue-next'
+```tsx
+import { useEffect, useRef } from 'react'
+import { useParams } from 'react-router-dom'
+import { useChatStore } from '@/stores/chatStore'
+import { useSessionStore } from '@/stores/sessionStore'
+import MessageBubble from '@/components/chat/MessageBubble'
+import ChatInput from '@/components/chat/ChatInput'
+import { MessageSquare, Loader2 } from 'lucide-react'
 
-const route = useRoute()
-const chatStore = useChatStore()
-const sessionStore = useSessionStore()
+export default function ChatPage() {
+  const { sessionId } = useParams()
+  const { messages, isStreaming, streamingContent, sendMessage, loadSession } = useChatStore()
+  const { addLocalSession } = useSessionStore()
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-// Scroll to bottom when messages change
-async function scrollToBottom() {
-  await nextTick()
-  const container = document.getElementById('chat-messages')
-  if (container) {
-    container.scrollTop = container.scrollHeight
+  // Load session from route param
+  useEffect(() => {
+    if (sessionId) {
+      // TODO: load session messages from backend when API is available
+      useChatStore.setState({ currentSessionId: sessionId })
+    }
+  }, [sessionId])
+
+  // Scroll to bottom on new messages or streaming
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length, streamingContent])
+
+  async function handleSend(question: string) {
+    await sendMessage(question)
+    const currentId = useChatStore.getState().currentSessionId
+    if (currentId) {
+      addLocalSession(currentId, question.slice(0, 30) + (question.length > 30 ? '...' : ''))
+    }
   }
-}
 
-watch(() => chatStore.messages.length, scrollToBottom)
-watch(() => chatStore.streamingContent, scrollToBottom)
+  return (
+    <div className="flex flex-col h-full">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-text-secondary">
+            <MessageSquare size={48} className="mb-4 opacity-30" />
+            <p className="text-lg font-medium">有什么可以帮你的？</p>
+            <p className="text-sm mt-1">基于知识库的智能问答助手</p>
+          </div>
+        ) : (
+          <div className="max-w-3xl mx-auto py-4">
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} />
+            ))}
 
-// Load session from route param
-onMounted(() => {
-  const sessionId = route.params.sessionId as string | undefined
-  if (sessionId && sessionId !== chatStore.currentSessionId) {
-    // Load session messages from backend (if available)
-    // For now, just set the session ID
-    chatStore.currentSessionId = sessionId
-  }
-})
+            {/* Streaming indicator */}
+            {isStreaming && !streamingContent && (
+              <div className="flex items-center gap-2 px-4 py-2 text-text-secondary text-sm">
+                <Loader2 size={16} className="animate-spin" />
+                <span>思考中...</span>
+              </div>
+            )}
 
-async function handleSend(question: string) {
-  await chatStore.sendMessage(question)
-  // Add to local session list if new
-  if (chatStore.currentSessionId) {
-    sessionStore.addLocalSession(
-      chatStore.currentSessionId,
-      question.slice(0, 30) + (question.length > 30 ? '...' : '')
-    )
-  }
-}
-</script>
-
-<template>
-  <div class="flex flex-col h-full">
-    <!-- Messages area -->
-    <div id="chat-messages" class="flex-1 overflow-y-auto">
-      <!-- Empty state -->
-      <div v-if="!chatStore.hasMessages" class="flex flex-col items-center justify-center h-full text-text-secondary">
-        <MessageSquare :size="48" class="mb-4 opacity-30" />
-        <p class="text-lg font-medium">有什么可以帮你的？</p>
-        <p class="text-sm mt-1">基于知识库的智能问答助手</p>
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
-      <!-- Message list -->
-      <div v-else class="max-w-3xl mx-auto py-4">
-        <MessageBubble
-          v-for="msg in chatStore.messages"
-          :key="msg.id"
-          :message="msg"
-        />
-      </div>
+      {/* Input area */}
+      <ChatInput disabled={isStreaming} onSend={handleSend} />
     </div>
-
-    <!-- Input area -->
-    <ChatInput
-      :disabled="chatStore.isStreaming"
-      @send="handleSend"
-    />
-  </div>
-</template>
+  )
+}
 ```
 
-- [ ] **Step 5: Verify chat page renders correctly**
+- [ ] **Step 5: Verify TypeScript compiles**
 
 ```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
+cd E:/idea_workspace/wok-rag-agent/frontend && npx tsc -b
 ```
 
-Open browser, verify:
-- Empty state shows centered icon and text
-- Input area at bottom with send button
-- Clicking send with text does nothing yet (backend may not be running)
+Expected: No errors.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent
-git add frontend/src/components/chat/ frontend/src/views/ChatView.vue
+git add frontend/src/
 git commit -m "feat: add chat page with message bubbles, input, and citation cards"
 ```
 
 ---
 
-### Task 7: Build Chat Page — SSE Streaming Integration
+### Task 7: Build Knowledge Management Page
 
 **Files:**
-- Modify: `frontend/src/stores/chat.ts`
-- Modify: `frontend/src/views/ChatView.vue` (minor)
+- Create: `frontend/src/components/common/UploadDialog.tsx`
+- Modify: `frontend/src/pages/KnowledgePage.tsx`
 
-- [ ] **Step 1: Fix the SSE parser in chat store**
+- [ ] **Step 1: Create UploadDialog component**
 
-The chat store created in Task 4 has a duplicate `sendMessage` function. Replace `frontend/src/stores/chat.ts` with the cleaned-up version:
+Create `frontend/src/components/common/UploadDialog.tsx`:
 
-```typescript
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { Message, RagResponse } from '@/types'
-import { streamRag } from '@/api/rag'
+```tsx
+import { useState, useRef } from 'react'
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
+import { Upload, X, FileText } from 'lucide-react'
 
-export const useChatStore = defineStore('chat', () => {
-  const messages = ref<Message[]>([])
-  const currentSessionId = ref<string | null>(null)
-  const isStreaming = ref(false)
-  const streamingContent = ref('')
-  const error = ref<string | null>(null)
+interface Props {
+  open: boolean
+  onClose: () => void
+  onUpload: (file: File, source: string) => void
+}
 
-  const hasMessages = computed(() => messages.value.length > 0)
+export default function UploadDialog({ open, onClose, onUpload }: Props) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [source, setSource] = useState('')
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  function generateId(): string {
-    return crypto.randomUUID()
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) setSelectedFile(file)
   }
 
-  function generateSessionId(): string {
-    return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) setSelectedFile(file)
   }
 
-  function clearMessages() {
-    messages.value = []
-    currentSessionId.value = null
-    error.value = null
-  }
-
-  function loadSession(sessionId: string, sessionMessages: Message[]) {
-    currentSessionId.value = sessionId
-    messages.value = sessionMessages
-    error.value = null
-  }
-
-  async function sendMessage(question: string) {
-    if (isStreaming.value || !question.trim()) return
-
-    error.value = null
-
-    const userMessage: Message = {
-      id: generateId(),
-      role: 'user',
-      content: question.trim(),
-      citations: [],
-      timestamp: Date.now(),
-    }
-    messages.value.push(userMessage)
-
-    if (!currentSessionId.value) {
-      currentSessionId.value = generateSessionId()
-    }
-
-    const assistantMessage: Message = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      citations: [],
-      timestamp: Date.now(),
-    }
-    messages.value.push(assistantMessage)
-
-    isStreaming.value = true
-    streamingContent.value = ''
-
-    try {
-      const stream = streamRag({
-        question: question.trim(),
-        sessionId: currentSessionId.value!,
-      })
-
-      const reader = stream.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let eventType = 'token'
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            eventType = line.slice(7).trim()
-          } else if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-
-            if (eventType === 'token') {
-              assistantMessage.content += data
-              streamingContent.value = assistantMessage.content
-            } else if (eventType === 'done') {
-              try {
-                const response: RagResponse = JSON.parse(data)
-                assistantMessage.content = response.answer
-                assistantMessage.citations = response.citations || []
-                if (response.sessionId) {
-                  currentSessionId.value = response.sessionId
-                }
-              } catch {
-                // Keep accumulated tokens
-              }
-            } else if (eventType === 'error') {
-              try {
-                const errData = JSON.parse(data)
-                assistantMessage.error = errData.message || 'Stream error'
-              } catch {
-                assistantMessage.error = 'Stream error'
-              }
-            }
-
-            eventType = 'token' // reset for next pair
-          }
-        }
-      }
-    } catch (err) {
-      assistantMessage.error = err instanceof Error ? err.message : 'Unknown error'
-    } finally {
-      isStreaming.value = false
-      streamingContent.value = ''
+  function handleUpload() {
+    if (selectedFile) {
+      onUpload(selectedFile, source)
+      setSelectedFile(null)
+      setSource('')
     }
   }
 
-  return {
-    messages,
-    currentSessionId,
-    isStreaming,
-    streamingContent,
-    error,
-    hasMessages,
-    clearMessages,
-    loadSession,
-    sendMessage,
-  }
-})
+  return (
+    <Transition show={open}>
+      <Dialog onClose={onClose} className="relative z-50">
+        <TransitionChild
+          enter="duration-200 ease-out"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="duration-150 ease-in"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/30" />
+        </TransitionChild>
+
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <TransitionChild
+            enter="duration-200 ease-out"
+            enterFrom="opacity-0 scale-95"
+            enterTo="opacity-100 scale-100"
+            leave="duration-150 ease-in"
+            leaveFrom="opacity-100 scale-100"
+            leaveTo="opacity-0 scale-95"
+          >
+            <DialogPanel className="w-full max-w-md rounded-xl bg-surface border border-border p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <DialogTitle className="text-lg font-semibold text-text">上传文档</DialogTitle>
+                <button onClick={onClose} className="p-1 rounded hover:bg-border/50 text-text-secondary">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Drop zone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                  dragOver ? 'border-primary bg-primary/5' : 'border-border'
+                }`}
+              >
+                {selectedFile ? (
+                  <FileText size={32} className="mx-auto mb-2 text-primary" />
+                ) : (
+                  <Upload size={32} className="mx-auto mb-2 text-text-secondary" />
+                )}
+                <p className="text-sm text-text">
+                  {selectedFile ? selectedFile.name : '拖拽文件到此处或点击选择'}
+                </p>
+                <p className="text-xs text-text-secondary mt-1">支持 PDF、TXT、DOCX 等格式</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.txt,.docx,.doc,.md"
+                />
+              </div>
+
+              {/* Source input */}
+              <div className="mt-4">
+                <label className="block text-sm text-text-secondary mb-1">来源描述（可选）</label>
+                <input
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  type="text"
+                  placeholder="例如：官网、客服中心"
+                  className="w-full rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 mt-6">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg text-sm text-text-secondary hover:bg-border/50 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={!selectedFile}
+                  className="px-4 py-2 rounded-lg text-sm text-white bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  上传
+                </button>
+              </div>
+            </DialogPanel>
+          </TransitionChild>
+        </div>
+      </Dialog>
+    </Transition>
+  )
+}
 ```
 
-- [ ] **Step 2: Add streaming indicator to ChatView**
+- [ ] **Step 2: Implement KnowledgePage**
 
-Add a loading indicator below the last message when streaming. Update `frontend/src/views/ChatView.vue` to add after the message list:
+Replace `frontend/src/pages/KnowledgePage.tsx`:
 
-```vue
-<script setup lang="ts">
-import { watch, nextTick, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { useChatStore } from '@/stores/chat'
-import { useSessionStore } from '@/stores/session'
-import MessageBubble from '@/components/chat/MessageBubble.vue'
-import ChatInput from '@/components/chat/ChatInput.vue'
-import { MessageSquare, Loader2 } from 'lucide-vue-next'
+```tsx
+import { useState, useEffect, useMemo } from 'react'
+import type { DocumentInfo } from '@/types'
+import { getDocuments, uploadDocument, deleteDocument } from '@/api/document'
+import UploadDialog from '@/components/common/UploadDialog'
+import { Database, Trash2, Upload, Search, FileText } from 'lucide-react'
 
-const route = useRoute()
-const chatStore = useChatStore()
-const sessionStore = useSessionStore()
+export default function KnowledgePage() {
+  const [documents, setDocuments] = useState<DocumentInfo[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showUpload, setShowUpload] = useState(false)
 
-async function scrollToBottom() {
-  await nextTick()
-  const container = document.getElementById('chat-messages')
-  if (container) {
-    container.scrollTop = container.scrollHeight
-  }
-}
-
-watch(() => chatStore.messages.length, scrollToBottom)
-watch(() => chatStore.streamingContent, scrollToBottom)
-
-onMounted(() => {
-  const sessionId = route.params.sessionId as string | undefined
-  if (sessionId && sessionId !== chatStore.currentSessionId) {
-    chatStore.currentSessionId = sessionId
-  }
-})
-
-async function handleSend(question: string) {
-  await chatStore.sendMessage(question)
-  if (chatStore.currentSessionId) {
-    sessionStore.addLocalSession(
-      chatStore.currentSessionId,
-      question.slice(0, 30) + (question.length > 30 ? '...' : '')
+  const filteredDocs = useMemo(() => {
+    if (!searchQuery) return documents
+    const q = searchQuery.toLowerCase()
+    return documents.filter(
+      (d) => d.name.toLowerCase().includes(q) || d.source.toLowerCase().includes(q)
     )
-  }
-}
-</script>
+  }, [documents, searchQuery])
 
-<template>
-  <div class="flex flex-col h-full">
-    <div id="chat-messages" class="flex-1 overflow-y-auto">
-      <div v-if="!chatStore.hasMessages" class="flex flex-col items-center justify-center h-full text-text-secondary">
-        <MessageSquare :size="48" class="mb-4 opacity-30" />
-        <p class="text-lg font-medium">有什么可以帮你的？</p>
-        <p class="text-sm mt-1">基于知识库的智能问答助手</p>
+  useEffect(() => {
+    setLoading(true)
+    getDocuments()
+      .then(setDocuments)
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleUpload(file: File, source: string) {
+    try {
+      const result = await uploadDocument(file, source)
+      setDocuments((prev) => [result, ...prev])
+      setShowUpload(false)
+    } catch (err) {
+      alert('上传失败: ' + (err instanceof Error ? err.message : '未知错误'))
+    }
+  }
+
+  async function handleDelete(doc: DocumentInfo) {
+    if (!confirm(`确定删除 "${doc.name}"？`)) return
+    try {
+      await deleteDocument(doc.id)
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id))
+    } catch {
+      alert('删除失败')
+    }
+  }
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-4xl mx-auto p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-semibold text-text flex items-center gap-2">
+              <Database size={22} />
+              知识库管理
+            </h1>
+            <p className="text-sm text-text-secondary mt-1">管理已导入的文档</p>
+          </div>
+          <button
+            onClick={() => setShowUpload(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary-hover transition-colors"
+          >
+            <Upload size={16} />
+            上传文档
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            type="text"
+            placeholder="搜索文档..."
+            className="w-full rounded-lg border border-border bg-surface-secondary pl-9 pr-3 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+
+        {/* Document list */}
+        {loading ? (
+          <div className="text-center py-12 text-text-secondary">加载中...</div>
+        ) : filteredDocs.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText size={48} className="mx-auto mb-3 text-text-secondary opacity-30" />
+            <p className="text-text-secondary">{searchQuery ? '没有匹配的文档' : '暂无文档，点击上方按钮上传'}</p>
+          </div>
+        ) : (
+          <div className="border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-surface-secondary text-text-secondary">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium">文档名称</th>
+                  <th className="text-left px-4 py-3 font-medium">来源</th>
+                  <th className="text-left px-4 py-3 font-medium">上传时间</th>
+                  <th className="text-right px-4 py-3 font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredDocs.map((doc) => (
+                  <tr key={doc.id} className="hover:bg-surface-secondary/50">
+                    <td className="px-4 py-3 text-text">{doc.name}</td>
+                    <td className="px-4 py-3 text-text-secondary">{doc.source || '-'}</td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {new Date(doc.uploadTime).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => void handleDelete(doc)}
+                        className="p-1.5 rounded hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      <div v-else class="max-w-3xl mx-auto py-4">
-        <MessageBubble
-          v-for="msg in chatStore.messages"
-          :key="msg.id"
-          :message="msg"
-        />
+      <UploadDialog
+        open={showUpload}
+        onClose={() => setShowUpload(false)}
+        onUpload={(file, source) => void handleUpload(file, source)}
+      />
+    </div>
+  )
+}
+```
 
-        <!-- Streaming indicator -->
-        <div v-if="chatStore.isStreaming && !chatStore.streamingContent" class="flex items-center gap-2 px-4 py-2 text-text-secondary text-sm">
-          <Loader2 :size="16" class="animate-spin" />
-          <span>思考中...</span>
+- [ ] **Step 3: Verify TypeScript compiles**
+
+```bash
+cd E:/idea_workspace/wok-rag-agent/frontend && npx tsc -b
+```
+
+Expected: No errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+cd E:/idea_workspace/wok-rag-agent
+git add frontend/src/
+git commit -m "feat: add knowledge management page with upload dialog"
+```
+
+---
+
+### Task 8: Build History, Status, and Settings Pages
+
+**Files:**
+- Create: `frontend/src/components/common/StatusCard.tsx`
+- Modify: `frontend/src/pages/HistoryPage.tsx`
+- Modify: `frontend/src/pages/StatusPage.tsx`
+- Modify: `frontend/src/pages/SettingsPage.tsx`
+
+- [ ] **Step 1: Create StatusCard component**
+
+Create `frontend/src/components/common/StatusCard.tsx`:
+
+```tsx
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
+
+interface Props {
+  title: string
+  status: 'ok' | 'error' | 'loading'
+  detail?: string
+}
+
+export default function StatusCard({ title, status, detail }: Props) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-secondary p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-text">{title}</h3>
+        {status === 'ok' && <CheckCircle size={18} className="text-green-500" />}
+        {status === 'error' && <XCircle size={18} className="text-error" />}
+        {status === 'loading' && <Loader2 size={18} className="animate-spin text-text-secondary" />}
+      </div>
+      {detail && <p className="text-xs text-text-secondary mt-1">{detail}</p>}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 2: Implement HistoryPage**
+
+Replace `frontend/src/pages/HistoryPage.tsx`:
+
+```tsx
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useSessionStore } from '@/stores/sessionStore'
+import { useChatStore } from '@/stores/chatStore'
+import { History, MessageSquare, Trash2, Clock } from 'lucide-react'
+
+export default function HistoryPage() {
+  const navigate = useNavigate()
+  const { sessions, loading, fetchSessions, removeSession } = useSessionStore()
+  const { currentSessionId, clearMessages } = useChatStore()
+
+  useEffect(() => {
+    void fetchSessions()
+  }, [fetchSessions])
+
+  async function handleDelete(sessionId: string) {
+    if (!confirm('确定删除此会话？')) return
+    await removeSession(sessionId)
+    if (currentSessionId === sessionId) {
+      clearMessages()
+    }
+  }
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-4xl mx-auto p-6">
+        <h1 className="text-xl font-semibold text-text flex items-center gap-2 mb-6">
+          <History size={22} />
+          会话历史
+        </h1>
+
+        {loading ? (
+          <div className="text-center py-12 text-text-secondary">加载中...</div>
+        ) : sessions.length === 0 ? (
+          <div className="text-center py-12">
+            <MessageSquare size={48} className="mx-auto mb-3 text-text-secondary opacity-30" />
+            <p className="text-text-secondary">暂无历史会话</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {sessions.map((session) => (
+              <div
+                key={session.sessionId}
+                onClick={() => navigate(`/chat/${session.sessionId}`)}
+                className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-surface-secondary/50 cursor-pointer transition-colors group"
+              >
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium text-text truncate">{session.title}</h3>
+                  <p className="text-xs text-text-secondary truncate mt-1">{session.lastMessage}</p>
+                </div>
+                <div className="flex items-center gap-3 ml-4">
+                  <div className="flex items-center gap-1 text-xs text-text-secondary">
+                    <Clock size={12} />
+                    {new Date(session.lastTime).toLocaleDateString()}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleDelete(session.sessionId)
+                    }}
+                    className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-error/10 text-text-secondary hover:text-error transition-all"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 3: Implement StatusPage**
+
+Replace `frontend/src/pages/StatusPage.tsx`:
+
+```tsx
+import { useState, useEffect, useCallback } from 'react'
+import { getHealth, getActuatorHealth } from '@/api/rag'
+import StatusCard from '@/components/common/StatusCard'
+import { Activity, RefreshCw } from 'lucide-react'
+
+interface HealthStatus {
+  title: string
+  status: 'ok' | 'error' | 'loading'
+  detail: string
+}
+
+export default function StatusPage() {
+  const [statuses, setStatuses] = useState<HealthStatus[]>([
+    { title: '应用状态', status: 'loading', detail: '' },
+    { title: 'Milvus 连接', status: 'loading', detail: '' },
+    { title: 'SiliconFlow API', status: 'loading', detail: '' },
+  ])
+  const [lastCheck, setLastCheck] = useState('')
+
+  const checkHealth = useCallback(async () => {
+    setStatuses((prev) => prev.map((s) => ({ ...s, status: 'loading' as const })))
+
+    // Basic health check
+    try {
+      const health = await getHealth()
+      setStatuses((prev) => {
+        const next = [...prev]
+        next[0] = {
+          title: '应用状态',
+          status: health.status === 'OK' ? 'ok' : 'error',
+          detail: `服务: ${health.service}`,
+        }
+        return next
+      })
+    } catch {
+      setStatuses((prev) => {
+        const next = [...prev]
+        next[0] = { title: '应用状态', status: 'error', detail: '无法连接到后端服务' }
+        return next
+      })
+    }
+
+    // Actuator health
+    try {
+      const actuator = await getActuatorHealth()
+      const components = (actuator.components || {}) as Record<string, Record<string, string>>
+
+      const milvus = components.milvus
+      setStatuses((prev) => {
+        const next = [...prev]
+        next[1] = {
+          title: 'Milvus 连接',
+          status: milvus?.status === 'UP' ? 'ok' : 'error',
+          detail: milvus?.status === 'UP' ? '向量数据库连接正常' : '连接异常',
+        }
+        return next
+      })
+
+      const siliconflow = components.siliconFlow
+      setStatuses((prev) => {
+        const next = [...prev]
+        next[2] = {
+          title: 'SiliconFlow API',
+          status: siliconflow?.status === 'UP' ? 'ok' : 'error',
+          detail: siliconflow?.status === 'UP' ? 'API 服务可用' : 'API 不可用',
+        }
+        return next
+      })
+    } catch {
+      setStatuses((prev) => {
+        const next = [...prev]
+        next[1] = { title: 'Milvus 连接', status: 'error', detail: '无法获取状态' }
+        next[2] = { title: 'SiliconFlow API', status: 'error', detail: '无法获取状态' }
+        return next
+      })
+    }
+
+    setLastCheck(new Date().toLocaleTimeString())
+  }, [])
+
+  useEffect(() => {
+    void checkHealth()
+  }, [checkHealth])
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold text-text flex items-center gap-2">
+            <Activity size={22} />
+            系统状态
+          </h1>
+          <button
+            onClick={() => void checkHealth()}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-text-secondary hover:bg-border/50 transition-colors"
+          >
+            <RefreshCw size={14} />
+            刷新
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {statuses.map((s, i) => (
+            <StatusCard key={i} title={s.title} status={s.status} detail={s.detail} />
+          ))}
+        </div>
+
+        {lastCheck && (
+          <p className="text-xs text-text-secondary mt-4 text-right">最后检查: {lastCheck}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 4: Implement SettingsPage**
+
+Replace `frontend/src/pages/SettingsPage.tsx`:
+
+```tsx
+import { useSettingsStore } from '@/stores/settingsStore'
+import { Settings, Sun, Moon, Globe } from 'lucide-react'
+
+export default function SettingsPage() {
+  const { settings, updateTheme, updateApiUrl, updateLanguage } = useSettingsStore()
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="max-w-2xl mx-auto p-6">
+        <h1 className="text-xl font-semibold text-text flex items-center gap-2 mb-6">
+          <Settings size={22} />
+          设置
+        </h1>
+
+        <div className="space-y-6">
+          {/* API URL */}
+          <div>
+            <label className="block text-sm font-medium text-text mb-2">API 基础地址</label>
+            <input
+              value={settings.apiUrl}
+              onChange={(e) => updateApiUrl(e.target.value)}
+              type="text"
+              className="w-full rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <p className="text-xs text-text-secondary mt-1">后端 API 地址，默认 http://localhost:8080</p>
+          </div>
+
+          {/* Theme */}
+          <div>
+            <label className="block text-sm font-medium text-text mb-2">主题</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateTheme('light')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-colors ${
+                  settings.theme === 'light'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-text-secondary hover:bg-border/30'
+                }`}
+              >
+                <Sun size={16} />
+                浅色
+              </button>
+              <button
+                onClick={() => updateTheme('dark')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-colors ${
+                  settings.theme === 'dark'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-text-secondary hover:bg-border/30'
+                }`}
+              >
+                <Moon size={16} />
+                深色
+              </button>
+            </div>
+          </div>
+
+          {/* Language */}
+          <div>
+            <label className="block text-sm font-medium text-text mb-2">
+              <Globe size={14} className="inline mr-1" />
+              语言
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateLanguage('zh')}
+                className={`px-4 py-2 rounded-lg text-sm border transition-colors ${
+                  settings.language === 'zh'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-text-secondary hover:bg-border/30'
+                }`}
+              >
+                中文
+              </button>
+              <button
+                onClick={() => updateLanguage('en')}
+                className={`px-4 py-2 rounded-lg text-sm border transition-colors ${
+                  settings.language === 'en'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-text-secondary hover:bg-border/30'
+                }`}
+              >
+                English
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-
-    <ChatInput
-      :disabled="chatStore.isStreaming"
-      @send="handleSend"
-    />
-  </div>
-</template>
+  )
+}
 ```
 
-- [ ] **Step 3: Test streaming with backend**
+- [ ] **Step 5: Verify TypeScript compiles**
 
-Start backend and frontend:
+```bash
+cd E:/idea_workspace/wok-rag-agent/frontend && npx tsc -b
+```
+
+Expected: No errors.
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd E:/idea_workspace/wok-rag-agent
+git add frontend/src/
+git commit -m "feat: add history, status, and settings pages"
+```
+
+---
+
+### Task 9: Final Verification and Build
+
+**Files:** None created/modified.
+
+- [ ] **Step 1: Run full TypeScript check**
+
+```bash
+cd E:/idea_workspace/wok-rag-agent/frontend && npx tsc -b
+```
+
+Expected: No errors.
+
+- [ ] **Step 2: Run production build**
+
+```bash
+cd E:/idea_workspace/wok-rag-agent/frontend && npm run build
+```
+
+Expected: Build succeeds, output in `frontend/dist/`.
+
+- [ ] **Step 3: Test with backend (optional)**
 
 ```bash
 # Terminal 1: Start backend
@@ -1718,789 +2130,16 @@ cd E:/idea_workspace/wok-rag-agent && mvn spring-boot:run
 cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
 ```
 
-Set `SILICONFLOW_API_KEY` env var, then in browser:
-1. Type a question and press Enter
-2. Verify tokens appear one by one (typewriter effect)
-3. Verify citations appear after response completes
-4. Verify session ID is maintained for follow-up questions
+Verify in browser:
+- Chat page: type a question, see streaming response with citations
+- Status page: shows health indicators
+- Settings page: theme toggle works, persists on refresh
+- Knowledge page: shows empty state (backend API not implemented yet)
 
-- [ ] **Step 4: Commit**
-
-```bash
-cd E:/idea_workspace/wok-rag-agent
-git add frontend/src/stores/chat.ts frontend/src/views/ChatView.vue
-git commit -m "feat: integrate SSE streaming with proper event parsing"
-```
-
----
-
-### Task 8: Build Knowledge Management Page
-
-**Files:**
-- Create: `frontend/src/components/common/UploadDialog.vue`
-- Modify: `frontend/src/views/KnowledgeView.vue`
-
-- [ ] **Step 1: Create UploadDialog component**
-
-Create `frontend/src/components/common/UploadDialog.vue`:
-
-```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue'
-import { Upload, X, File } from 'lucide-vue-next'
-
-const props = defineProps<{
-  open: boolean
-}>()
-
-const emit = defineEmits<{
-  close: []
-  upload: [file: File, source: string]
-}>()
-
-const selectedFile = ref<File | null>(null)
-const source = ref('')
-const uploading = ref(false)
-const dragOver = ref(false)
-
-function handleDrop(e: DragEvent) {
-  dragOver.value = false
-  const file = e.dataTransfer?.files[0]
-  if (file) selectedFile.value = file
-}
-
-function handleFileSelect(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) selectedFile.value = file
-}
-
-async function handleUpload() {
-  if (!selectedFile.value) return
-  uploading.value = true
-  try {
-    emit('upload', selectedFile.value, source.value)
-    selectedFile.value = null
-    source.value = ''
-  } finally {
-    uploading.value = false
-  }
-}
-</script>
-
-<template>
-  <TransitionRoot :show="open" as="template">
-    <Dialog @close="emit('close')">
-      <TransitionChild
-        enter="duration-200 ease-out"
-        enter-from="opacity-0"
-        enter-to="opacity-100"
-        leave="duration-150 ease-in"
-        leave-from="opacity-100"
-        leave-to="opacity-0"
-      >
-        <div class="fixed inset-0 bg-black/30 z-50" />
-      </TransitionChild>
-
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <TransitionChild
-          enter="duration-200 ease-out"
-          enter-from="opacity-0 scale-95"
-          enter-to="opacity-100 scale-100"
-          leave="duration-150 ease-in"
-          leave-from="opacity-100 scale-100"
-          leave-to="opacity-0 scale-95"
-        >
-          <DialogPanel class="w-full max-w-md rounded-xl bg-surface border border-border p-6 shadow-xl">
-            <div class="flex items-center justify-between mb-4">
-              <DialogTitle class="text-lg font-semibold text-text">上传文档</DialogTitle>
-              <button @click="emit('close')" class="p-1 rounded hover:bg-border/50 text-text-secondary">
-                <X :size="18" />
-              </button>
-            </div>
-
-            <!-- Drop zone -->
-            <div
-              @dragover.prevent="dragOver = true"
-              @dragleave="dragOver = false"
-              @drop.prevent="handleDrop"
-              class="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors"
-              :class="dragOver ? 'border-primary bg-primary/5' : 'border-border'"
-              @click="($refs.fileInput as HTMLInputElement).click()"
-            >
-              <File v-if="selectedFile" :size="32" class="mx-auto mb-2 text-primary" />
-              <Upload v-else :size="32" class="mx-auto mb-2 text-text-secondary" />
-              <p class="text-sm text-text">
-                {{ selectedFile ? selectedFile.name : '拖拽文件到此处或点击选择' }}
-              </p>
-              <p class="text-xs text-text-secondary mt-1">支持 PDF、TXT、DOCX 等格式</p>
-              <input
-                ref="fileInput"
-                type="file"
-                class="hidden"
-                @change="handleFileSelect"
-                accept=".pdf,.txt,.docx,.doc,.md"
-              />
-            </div>
-
-            <!-- Source input -->
-            <div class="mt-4">
-              <label class="block text-sm text-text-secondary mb-1">来源描述（可选）</label>
-              <input
-                v-model="source"
-                type="text"
-                placeholder="例如：官网、客服中心"
-                class="w-full rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-text
-                       placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-            </div>
-
-            <!-- Actions -->
-            <div class="flex justify-end gap-2 mt-6">
-              <button
-                @click="emit('close')"
-                class="px-4 py-2 rounded-lg text-sm text-text-secondary hover:bg-border/50 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                @click="handleUpload"
-                :disabled="!selectedFile || uploading"
-                class="px-4 py-2 rounded-lg text-sm text-white bg-primary hover:bg-primary-hover
-                       disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {{ uploading ? '上传中...' : '上传' }}
-              </button>
-            </div>
-          </DialogPanel>
-        </TransitionChild>
-      </div>
-    </Dialog>
-  </TransitionRoot>
-</template>
-```
-
-- [ ] **Step 2: Implement KnowledgeView**
-
-Replace `frontend/src/views/KnowledgeView.vue`:
-
-```vue
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import type { DocumentInfo } from '@/types'
-import { getDocuments, uploadDocument, deleteDocument } from '@/api/document'
-import UploadDialog from '@/components/common/UploadDialog.vue'
-import { Database, Trash2, Upload, Search, FileText } from 'lucide-vue-next'
-
-const documents = ref<DocumentInfo[]>([])
-const loading = ref(false)
-const searchQuery = ref('')
-const showUpload = ref(false)
-
-const filteredDocs = computed(() => {
-  if (!searchQuery.value) return documents.value
-  const q = searchQuery.value.toLowerCase()
-  return documents.value.filter(
-    d => d.name.toLowerCase().includes(q) || d.source.toLowerCase().includes(q)
-  )
-})
-
-async function fetchDocuments() {
-  loading.value = true
-  try {
-    documents.value = await getDocuments()
-  } finally {
-    loading.value = false
-  }
-}
-
-async function handleUpload(file: File, source: string) {
-  try {
-    const result = await uploadDocument(file, source)
-    documents.value.unshift(result)
-    showUpload.value = false
-  } catch (err) {
-    alert('上传失败: ' + (err instanceof Error ? err.message : '未知错误'))
-  }
-}
-
-async function handleDelete(doc: DocumentInfo) {
-  if (!confirm(`确定删除 "${doc.name}"？`)) return
-  try {
-    await deleteDocument(doc.id)
-    documents.value = documents.value.filter(d => d.id !== doc.id)
-  } catch {
-    alert('删除失败')
-  }
-}
-
-onMounted(fetchDocuments)
-</script>
-
-<template>
-  <div class="h-full overflow-y-auto">
-    <div class="max-w-4xl mx-auto p-6">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <h1 class="text-xl font-semibold text-text flex items-center gap-2">
-            <Database :size="22" />
-            知识库管理
-          </h1>
-          <p class="text-sm text-text-secondary mt-1">管理已导入的文档</p>
-        </div>
-        <button
-          @click="showUpload = true"
-          class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm
-                 hover:bg-primary-hover transition-colors"
-        >
-          <Upload :size="16" />
-          上传文档
-        </button>
-      </div>
-
-      <!-- Search -->
-      <div class="relative mb-4">
-        <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜索文档..."
-          class="w-full rounded-lg border border-border bg-surface-secondary pl-9 pr-3 py-2 text-sm text-text
-                 placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
-        />
-      </div>
-
-      <!-- Document list -->
-      <div v-if="loading" class="text-center py-12 text-text-secondary">加载中...</div>
-
-      <div v-else-if="filteredDocs.length === 0" class="text-center py-12">
-        <FileText :size="48" class="mx-auto mb-3 text-text-secondary opacity-30" />
-        <p class="text-text-secondary">{{ searchQuery ? '没有匹配的文档' : '暂无文档，点击上方按钮上传' }}</p>
-      </div>
-
-      <div v-else class="border border-border rounded-lg overflow-hidden">
-        <table class="w-full text-sm">
-          <thead class="bg-surface-secondary text-text-secondary">
-            <tr>
-              <th class="text-left px-4 py-3 font-medium">文档名称</th>
-              <th class="text-left px-4 py-3 font-medium">来源</th>
-              <th class="text-left px-4 py-3 font-medium">上传时间</th>
-              <th class="text-right px-4 py-3 font-medium">操作</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            <tr v-for="doc in filteredDocs" :key="doc.id" class="hover:bg-surface-secondary/50">
-              <td class="px-4 py-3 text-text">{{ doc.name }}</td>
-              <td class="px-4 py-3 text-text-secondary">{{ doc.source || '-' }}</td>
-              <td class="px-4 py-3 text-text-secondary">{{ new Date(doc.uploadTime).toLocaleDateString() }}</td>
-              <td class="px-4 py-3 text-right">
-                <button
-                  @click="handleDelete(doc)"
-                  class="p-1.5 rounded hover:bg-error/10 text-text-secondary hover:text-error transition-colors"
-                >
-                  <Trash2 :size="16" />
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Upload dialog -->
-    <UploadDialog
-      :open="showUpload"
-      @close="showUpload = false"
-      @upload="handleUpload"
-    />
-  </div>
-</template>
-```
-
-- [ ] **Step 3: Verify knowledge page renders**
-
-```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
-```
-
-Navigate to `/knowledge`. Verify:
-- Header with title and upload button
-- Search input
-- Empty state message (backend API may not be available yet)
-- Upload dialog opens on button click
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Commit any final fixes**
 
 ```bash
 cd E:/idea_workspace/wok-rag-agent
-git add frontend/src/views/KnowledgeView.vue frontend/src/components/common/UploadDialog.vue
-git commit -m "feat: add knowledge management page with upload dialog"
-```
-
----
-
-### Task 9: Build History, Status, and Settings Pages
-
-**Files:**
-- Modify: `frontend/src/views/HistoryView.vue`
-- Modify: `frontend/src/views/StatusView.vue`
-- Modify: `frontend/src/views/SettingsView.vue`
-- Create: `frontend/src/components/common/StatusCard.vue`
-
-- [ ] **Step 1: Create StatusCard component**
-
-Create `frontend/src/components/common/StatusCard.vue`:
-
-```vue
-<script setup lang="ts">
-import { CheckCircle, XCircle, Loader2 } from 'lucide-vue-next'
-
-defineProps<{
-  title: string
-  status: 'ok' | 'error' | 'loading'
-  detail?: string
-}>()
-</script>
-
-<template>
-  <div class="rounded-lg border border-border bg-surface-secondary p-4">
-    <div class="flex items-center justify-between">
-      <h3 class="text-sm font-medium text-text">{{ title }}</h3>
-      <div class="flex items-center gap-2">
-        <CheckCircle v-if="status === 'ok'" :size="18" class="text-green-500" />
-        <XCircle v-else-if="status === 'error'" :size="18" class="text-error" />
-        <Loader2 v-else :size="18" class="animate-spin text-text-secondary" />
-      </div>
-    </div>
-    <p v-if="detail" class="text-xs text-text-secondary mt-1">{{ detail }}</p>
-  </div>
-</template>
-```
-
-- [ ] **Step 2: Implement HistoryView**
-
-Replace `frontend/src/views/HistoryView.vue`:
-
-```vue
-<script setup lang="ts">
-import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useSessionStore } from '@/stores/session'
-import { useChatStore } from '@/stores/chat'
-import { History, MessageSquare, Trash2, Clock } from 'lucide-vue-next'
-
-const router = useRouter()
-const sessionStore = useSessionStore()
-const chatStore = useChatStore()
-
-onMounted(() => {
-  sessionStore.fetchSessions()
-})
-
-function openSession(sessionId: string) {
-  router.push(`/chat/${sessionId}`)
-}
-
-async function deleteSession(sessionId: string) {
-  if (!confirm('确定删除此会话？')) return
-  await sessionStore.removeSession(sessionId)
-  if (chatStore.currentSessionId === sessionId) {
-    chatStore.clearMessages()
-  }
-}
-</script>
-
-<template>
-  <div class="h-full overflow-y-auto">
-    <div class="max-w-4xl mx-auto p-6">
-      <h1 class="text-xl font-semibold text-text flex items-center gap-2 mb-6">
-        <History :size="22" />
-        会话历史
-      </h1>
-
-      <div v-if="sessionStore.loading" class="text-center py-12 text-text-secondary">加载中...</div>
-
-      <div v-else-if="sessionStore.sessions.length === 0" class="text-center py-12">
-        <MessageSquare :size="48" class="mx-auto mb-3 text-text-secondary opacity-30" />
-        <p class="text-text-secondary">暂无历史会话</p>
-      </div>
-
-      <div v-else class="space-y-2">
-        <div
-          v-for="session in sessionStore.sessions"
-          :key="session.sessionId"
-          class="flex items-center justify-between p-4 rounded-lg border border-border
-                 hover:bg-surface-secondary/50 cursor-pointer transition-colors group"
-          @click="openSession(session.sessionId)"
-        >
-          <div class="min-w-0 flex-1">
-            <h3 class="text-sm font-medium text-text truncate">{{ session.title }}</h3>
-            <p class="text-xs text-text-secondary truncate mt-1">{{ session.lastMessage }}</p>
-          </div>
-          <div class="flex items-center gap-3 ml-4">
-            <div class="flex items-center gap-1 text-xs text-text-secondary">
-              <Clock :size="12" />
-              {{ new Date(session.lastTime).toLocaleDateString() }}
-            </div>
-            <button
-              @click.stop="deleteSession(session.sessionId)"
-              class="p-1.5 rounded opacity-0 group-hover:opacity-100
-                     hover:bg-error/10 text-text-secondary hover:text-error transition-all"
-            >
-              <Trash2 :size="16" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-```
-
-- [ ] **Step 3: Implement StatusView**
-
-Replace `frontend/src/views/StatusView.vue`:
-
-```vue
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getHealth, getActuatorHealth } from '@/api/rag'
-import StatusCard from '@/components/common/StatusCard.vue'
-import { Activity, RefreshCw } from 'lucide-vue-next'
-
-interface HealthStatus {
-  title: string
-  status: 'ok' | 'error' | 'loading'
-  detail: string
-}
-
-const statuses = ref<HealthStatus[]>([
-  { title: '应用状态', status: 'loading', detail: '' },
-  { title: 'Milvus 连接', status: 'loading', detail: '' },
-  { title: 'SiliconFlow API', status: 'loading', detail: '' },
-])
-
-const lastCheck = ref('')
-
-async function checkHealth() {
-  statuses.value.forEach(s => { s.status = 'loading' })
-
-  // Basic health check
-  try {
-    const health = await getHealth()
-    statuses.value[0] = {
-      title: '应用状态',
-      status: health.status === 'OK' ? 'ok' : 'error',
-      detail: `服务: ${health.service}`,
-    }
-  } catch {
-    statuses.value[0] = {
-      title: '应用状态',
-      status: 'error',
-      detail: '无法连接到后端服务',
-    }
-  }
-
-  // Actuator health (Milvus + SiliconFlow)
-  try {
-    const actuator = await getActuatorHealth() as Record<string, unknown>
-    const components = (actuator.components || {}) as Record<string, Record<string, string>>
-
-    // Milvus
-    const milvus = components?.milvus
-    statuses.value[1] = {
-      title: 'Milvus 连接',
-      status: milvus?.status === 'UP' ? 'ok' : 'error',
-      detail: milvus?.status === 'UP' ? '向量数据库连接正常' : '连接异常',
-    }
-
-    // SiliconFlow
-    const siliconflow = components?.siliconFlow
-    statuses.value[2] = {
-      title: 'SiliconFlow API',
-      status: siliconflow?.status === 'UP' ? 'ok' : 'error',
-      detail: siliconflow?.status === 'UP' ? 'API 服务可用' : 'API 不可用',
-    }
-  } catch {
-    statuses.value[1] = { title: 'Milvus 连接', status: 'error', detail: '无法获取状态' }
-    statuses.value[2] = { title: 'SiliconFlow API', status: 'error', detail: '无法获取状态' }
-  }
-
-  lastCheck.value = new Date().toLocaleTimeString()
-}
-
-onMounted(checkHealth)
-</script>
-
-<template>
-  <div class="h-full overflow-y-auto">
-    <div class="max-w-2xl mx-auto p-6">
-      <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-semibold text-text flex items-center gap-2">
-          <Activity :size="22" />
-          系统状态
-        </h1>
-        <button
-          @click="checkHealth"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-text-secondary
-                 hover:bg-border/50 transition-colors"
-        >
-          <RefreshCw :size="14" />
-          刷新
-        </button>
-      </div>
-
-      <div class="space-y-3">
-        <StatusCard
-          v-for="(s, i) in statuses"
-          :key="i"
-          :title="s.title"
-          :status="s.status"
-          :detail="s.detail"
-        />
-      </div>
-
-      <p v-if="lastCheck" class="text-xs text-text-secondary mt-4 text-right">
-        最后检查: {{ lastCheck }}
-      </p>
-    </div>
-  </div>
-</template>
-```
-
-- [ ] **Step 4: Implement SettingsView**
-
-Replace `frontend/src/views/SettingsView.vue`:
-
-```vue
-<script setup lang="ts">
-import { useSettingsStore } from '@/stores/settings'
-import { Settings, Sun, Moon, Globe } from 'lucide-vue-next'
-
-const settingsStore = useSettingsStore()
-</script>
-
-<template>
-  <div class="h-full overflow-y-auto">
-    <div class="max-w-2xl mx-auto p-6">
-      <h1 class="text-xl font-semibold text-text flex items-center gap-2 mb-6">
-        <Settings :size="22" />
-        设置
-      </h1>
-
-      <div class="space-y-6">
-        <!-- API URL -->
-        <div>
-          <label class="block text-sm font-medium text-text mb-2">API 基础地址</label>
-          <input
-            :value="settingsStore.settings.apiUrl"
-            @input="settingsStore.updateApiUrl(($event.target as HTMLInputElement).value)"
-            type="text"
-            class="w-full rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-text
-                   focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <p class="text-xs text-text-secondary mt-1">后端 API 地址，默认 http://localhost:8080</p>
-        </div>
-
-        <!-- Theme -->
-        <div>
-          <label class="block text-sm font-medium text-text mb-2">主题</label>
-          <div class="flex gap-2">
-            <button
-              @click="settingsStore.updateTheme('light')"
-              class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-colors"
-              :class="settingsStore.settings.theme === 'light'
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-text-secondary hover:bg-border/30'"
-            >
-              <Sun :size="16" />
-              浅色
-            </button>
-            <button
-              @click="settingsStore.updateTheme('dark')"
-              class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-colors"
-              :class="settingsStore.settings.theme === 'dark'
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-text-secondary hover:bg-border/30'"
-            >
-              <Moon :size="16" />
-              深色
-            </button>
-          </div>
-        </div>
-
-        <!-- Language -->
-        <div>
-          <label class="block text-sm font-medium text-text mb-2">
-            <Globe :size="14" class="inline mr-1" />
-            语言
-          </label>
-          <div class="flex gap-2">
-            <button
-              @click="settingsStore.updateLanguage('zh')"
-              class="px-4 py-2 rounded-lg text-sm border transition-colors"
-              :class="settingsStore.settings.language === 'zh'
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-text-secondary hover:bg-border/30'"
-            >
-              中文
-            </button>
-            <button
-              @click="settingsStore.updateLanguage('en')"
-              class="px-4 py-2 rounded-lg text-sm border transition-colors"
-              :class="settingsStore.settings.language === 'en'
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border text-text-secondary hover:bg-border/30'"
-            >
-              English
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-```
-
-- [ ] **Step 5: Verify all pages render**
-
-```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
-```
-
-Navigate through all pages and verify:
-- `/history` — empty state or session list
-- `/status` — three status cards with loading/ok/error states
-- `/settings` — API URL input, theme toggle, language toggle
-- Theme toggle switches between light/dark mode
-- Settings persist after page refresh
-
-- [ ] **Step 6: Commit**
-
-```bash
-cd E:/idea_workspace/wok-rag-agent
-git add frontend/src/views/StatusView.vue frontend/src/views/HistoryView.vue frontend/src/views/SettingsView.vue frontend/src/components/common/StatusCard.vue
-git commit -m "feat: add history, status, and settings pages"
-```
-
----
-
-### Task 10: Responsive Design and Polish
-
-**Files:**
-- Modify: `frontend/src/components/layout/Sidebar.vue`
-- Modify: `frontend/src/components/layout/AppLayout.vue`
-
-- [ ] **Step 1: Add mobile responsive behavior to Sidebar**
-
-Update `frontend/src/components/layout/Sidebar.vue` to auto-collapse on mobile and add overlay behavior:
-
-Add to the `<script setup>`:
-
-```typescript
-import { ref, onMounted, onUnmounted } from 'vue'
-
-const isMobile = ref(false)
-
-function checkMobile() {
-  isMobile.value = window.innerWidth < 768
-  if (isMobile.value) collapsed.value = true
-}
-
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
-```
-
-Add mobile overlay to the template — wrap the `<aside>` with:
-
-```vue
-<!-- Mobile overlay -->
-<div
-  v-if="isMobile && !collapsed"
-  class="fixed inset-0 bg-black/30 z-40 md:hidden"
-  @click="collapsed = true"
-/>
-
-<aside
-  class="flex flex-col h-screen border-r border-border bg-surface-secondary transition-all duration-300 z-50"
-  :class="[
-    collapsed ? 'w-16' : 'w-64',
-    isMobile && collapsed ? '-translate-x-full md:translate-x-0' : '',
-  ]"
->
-  <!-- ... existing content ... -->
-</aside>
-```
-
-- [ ] **Step 2: Add mobile hamburger menu to AppLayout**
-
-Update `frontend/src/components/layout/AppLayout.vue` to expose a toggle for mobile:
-
-```vue
-<script setup lang="ts">
-import { ref } from 'vue'
-import Sidebar from './Sidebar.vue'
-import { Menu } from 'lucide-vue-next'
-
-const sidebarRef = ref<InstanceType<typeof Sidebar>>()
-</script>
-
-<template>
-  <div class="flex h-screen overflow-hidden bg-surface">
-    <Sidebar ref="sidebarRef" />
-    <main class="flex-1 overflow-hidden relative">
-      <!-- Mobile menu button -->
-      <button
-        @click="sidebarRef?.toggle()"
-        class="md:hidden absolute top-3 left-3 z-30 p-2 rounded-lg bg-surface border border-border
-               text-text-secondary hover:bg-surface-secondary"
-      >
-        <Menu :size="18" />
-      </button>
-      <router-view />
-    </main>
-  </div>
-</template>
-```
-
-Expose `toggle` from Sidebar by adding to its `<script setup>`:
-
-```typescript
-defineExpose({ toggle: () => { collapsed.value = !collapsed.value } })
-```
-
-- [ ] **Step 3: Verify responsive behavior**
-
-```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npm run dev
-```
-
-- Resize browser to mobile width (< 768px)
-- Sidebar should auto-collapse
-- Hamburger menu button should appear
-- Clicking hamburger opens sidebar with overlay
-- Clicking overlay closes sidebar
-
-- [ ] **Step 4: Final type check and build verification**
-
-```bash
-cd E:/idea_workspace/wok-rag-agent/frontend && npx vue-tsc --build --noEmit && npm run build
-```
-
-Expected: No TypeScript errors, build succeeds.
-
-- [ ] **Step 5: Commit**
-
-```bash
-cd E:/idea_workspace/wok-rag-agent
-git add frontend/src/
-git commit -m "feat: add responsive design with mobile sidebar support"
+git add frontend/
+git commit -m "chore: final frontend verification and cleanup"
 ```
