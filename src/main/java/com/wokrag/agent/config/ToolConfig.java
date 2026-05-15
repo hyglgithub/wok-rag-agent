@@ -8,6 +8,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "tool")
 public class ToolConfig {
-    private boolean enabled = false;
+    private boolean enabled = true;
     private String model = "Qwen/Qwen2.5-7B-Instruct";
 }
