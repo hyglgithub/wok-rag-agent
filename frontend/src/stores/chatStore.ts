@@ -71,6 +71,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       const decoder = new TextDecoder()
       let buffer = ''
       let eventType = 'token'
+      let dataLines: string[] = []
 
       while (true) {
         const { done, value } = await reader.read()
@@ -84,42 +85,46 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           if (line.startsWith('event: ')) {
             eventType = line.slice(7).trim()
           } else if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-
-            set((state) => {
-              const msgs = [...state.messages]
-              const lastMsg = msgs[msgs.length - 1]
-              if (!lastMsg || lastMsg.role !== 'assistant') return state
-
-              if (eventType === 'token') {
-                lastMsg.content += data
-                return { messages: msgs, streamingContent: lastMsg.content }
-              } else if (eventType === 'done') {
-                try {
-                  const response = JSON.parse(data) as RagResponse
-                  lastMsg.content = response.answer
-                  lastMsg.citations = response.citations || []
-                  return {
-                    messages: msgs,
-                    currentSessionId: response.sessionId || state.currentSessionId,
-                  }
-                } catch {
-                  return state
-                }
-              } else if (eventType === 'error') {
-                try {
-                  const errData = JSON.parse(data) as { message: string }
-                  lastMsg.error = errData.message || 'Stream error'
-                } catch {
-                  lastMsg.error = 'Stream error'
-                }
-                return { messages: msgs }
-              }
-
-              return state
-            })
+            dataLines.push(line.slice(6))
           } else if (line === '') {
-            // Empty line marks end of SSE event — reset for next event
+            // Empty line = event boundary. Process accumulated data.
+            if (dataLines.length > 0) {
+              const data = dataLines.join('\n')
+              dataLines = []
+
+              set((state) => {
+                const msgs = [...state.messages]
+                const lastMsg = msgs[msgs.length - 1]
+                if (!lastMsg || lastMsg.role !== 'assistant') return state
+
+                if (eventType === 'token') {
+                  lastMsg.content += data
+                  return { messages: msgs, streamingContent: lastMsg.content }
+                } else if (eventType === 'done') {
+                  try {
+                    const response = JSON.parse(data) as RagResponse
+                    lastMsg.content = response.answer
+                    lastMsg.citations = response.citations || []
+                    return {
+                      messages: msgs,
+                      currentSessionId: response.sessionId || state.currentSessionId,
+                    }
+                  } catch {
+                    return state
+                  }
+                } else if (eventType === 'error') {
+                  try {
+                    const errData = JSON.parse(data) as { message: string }
+                    lastMsg.error = errData.message || 'Stream error'
+                  } catch {
+                    lastMsg.error = 'Stream error'
+                  }
+                  return { messages: msgs }
+                }
+
+                return state
+              })
+            }
             eventType = 'token'
           }
         }
