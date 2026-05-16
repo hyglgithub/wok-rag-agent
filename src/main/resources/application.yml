@@ -59,6 +59,8 @@ intent:
 management:
   endpoints:
     web:
+      cors:
+        allowed-origins: http://localhost:5173
       exposure:
         include: health,info,prometheus
   endpoint:

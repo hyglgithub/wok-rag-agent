@@ -62,70 +62,53 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     })
 
     try {
-      const stream = streamRag({
+      const response = await streamRag({
         question: question.trim(),
         sessionId,
       })
 
-      const reader = stream.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let eventType = 'token'
-      let dataLines: string[] = []
+      const text = await response.text()
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
+      // Find the done event and extract its JSON payload
+      const doneIdx = text.indexOf('event:done')
+      if (doneIdx !== -1) {
+        const afterDone = text.slice(doneIdx)
+        const lines = afterDone.split('\n')
+        const dataLines: string[] = []
 
         for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            eventType = line.slice(7).trim()
-          } else if (line.startsWith('data: ')) {
+          if (line.startsWith('data: ')) {
             dataLines.push(line.slice(6))
-          } else if (line === '') {
-            // Empty line = event boundary. Process accumulated data.
-            if (dataLines.length > 0) {
-              const data = dataLines.join('\n')
-              dataLines = []
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5))
+          } else if (line === '' && dataLines.length > 0) {
+            break
+          }
+        }
 
-              set((state) => {
-                const msgs = [...state.messages]
-                const lastMsg = msgs[msgs.length - 1]
-                if (!lastMsg || lastMsg.role !== 'assistant') return state
-
-                if (eventType === 'token') {
-                  lastMsg.content += data
-                  return { messages: msgs, streamingContent: lastMsg.content }
-                } else if (eventType === 'done') {
-                  try {
-                    const response = JSON.parse(data) as RagResponse
-                    lastMsg.content = response.answer
-                    lastMsg.citations = response.citations || []
-                    return {
-                      messages: msgs,
-                      currentSessionId: response.sessionId || state.currentSessionId,
-                    }
-                  } catch {
-                    return state
-                  }
-                } else if (eventType === 'error') {
-                  try {
-                    const errData = JSON.parse(data) as { message: string }
-                    lastMsg.error = errData.message || 'Stream error'
-                  } catch {
-                    lastMsg.error = 'Stream error'
-                  }
-                  return { messages: msgs }
-                }
-
-                return state
-              })
-            }
-            eventType = 'token'
+        if (dataLines.length > 0) {
+          try {
+            const result = JSON.parse(dataLines.join('\n')) as RagResponse
+            set((state) => {
+              const msgs = [...state.messages]
+              const lastMsg = msgs[msgs.length - 1]
+              if (!lastMsg || lastMsg.role !== 'assistant') return state
+              lastMsg.content = result.answer
+              lastMsg.citations = result.citations || []
+              return {
+                messages: msgs,
+                currentSessionId: result.sessionId || state.currentSessionId,
+              }
+            })
+          } catch {
+            set((state) => {
+              const msgs = [...state.messages]
+              const lastMsg = msgs[msgs.length - 1]
+              if (lastMsg && lastMsg.role === 'assistant') {
+                lastMsg.error = 'Failed to parse response'
+              }
+              return { messages: msgs }
+            })
           }
         }
       }

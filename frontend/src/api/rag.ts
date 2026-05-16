@@ -1,4 +1,5 @@
-import { apiFetch, createSSEStream } from './client'
+import { apiFetch } from './client'
+import { useSettingsStore } from '@/stores/settingsStore'
 import type { QueryRequest, RagResponse, HealthResponse, Session, SessionMessage } from '@/types'
 
 export function queryRag(request: QueryRequest): Promise<RagResponse> {
@@ -8,8 +9,20 @@ export function queryRag(request: QueryRequest): Promise<RagResponse> {
   })
 }
 
-export function streamRag(request: QueryRequest): ReadableStream<Uint8Array> {
-  return createSSEStream('/api/rag/stream', request)
+export async function streamRag(request: QueryRequest): Promise<Response> {
+  const url = `${useSettingsStore.getState().settings.apiUrl}/api/rag/stream`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({
+      message: `HTTP ${response.status}`,
+    }))
+    throw error
+  }
+  return response
 }
 
 export function getHealth(): Promise<HealthResponse> {
