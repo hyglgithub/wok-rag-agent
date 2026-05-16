@@ -118,7 +118,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
               return state
             })
-
+          } else if (line === '') {
+            // Empty line marks end of SSE event — reset for next event
             eventType = 'token'
           }
         }
