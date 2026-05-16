@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Message, RagResponse } from '@/types'
 import { streamRag } from '@/api/rag'
+import { parseSSEStream } from '@/lib/sseParser'
 
 interface ChatState {
   messages: Message[]
@@ -50,6 +51,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       content: '',
       citations: [],
       timestamp: Date.now(),
+      isStreaming: true,
     }
 
     const sessionId = state.currentSessionId || generateSessionId()
@@ -67,49 +69,54 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         sessionId,
       })
 
-      const text = await response.text()
+      const body = response.body
+      if (!body) throw new Error('Response body is null')
 
-      // Find the done event and extract its JSON payload
-      const doneIdx = text.indexOf('event:done')
-      if (doneIdx !== -1) {
-        const afterDone = text.slice(doneIdx)
-        const lines = afterDone.split('\n')
-        const dataLines: string[] = []
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            dataLines.push(line.slice(6))
-          } else if (line.startsWith('data:')) {
-            dataLines.push(line.slice(5))
-          } else if (line === '' && dataLines.length > 0) {
-            break
-          }
+      for await (const event of parseSSEStream(body)) {
+        if (event.event === 'token') {
+          set((state) => {
+            const msgs = [...state.messages]
+            const lastMsg = msgs[msgs.length - 1]
+            if (!lastMsg || lastMsg.role !== 'assistant') return state
+            const updated = { ...lastMsg, content: lastMsg.content + event.data }
+            msgs[msgs.length - 1] = updated
+            return { messages: msgs, streamingContent: updated.content }
+          })
         }
 
-        if (dataLines.length > 0) {
+        if (event.event === 'done') {
+          const result = JSON.parse(event.data) as RagResponse
+          set((state) => {
+            const msgs = [...state.messages]
+            const lastMsg = msgs[msgs.length - 1]
+            if (!lastMsg || lastMsg.role !== 'assistant') return state
+            msgs[msgs.length - 1] = {
+              ...lastMsg,
+              content: result.answer,
+              citations: result.citations || [],
+              isStreaming: false,
+            }
+            return {
+              messages: msgs,
+              currentSessionId: result.sessionId || state.currentSessionId,
+            }
+          })
+        }
+
+        if (event.event === 'error') {
+          let errorMsg = 'Stream error'
           try {
-            const result = JSON.parse(dataLines.join('\n')) as RagResponse
-            set((state) => {
-              const msgs = [...state.messages]
-              const lastMsg = msgs[msgs.length - 1]
-              if (!lastMsg || lastMsg.role !== 'assistant') return state
-              lastMsg.content = result.answer
-              lastMsg.citations = result.citations || []
-              return {
-                messages: msgs,
-                currentSessionId: result.sessionId || state.currentSessionId,
-              }
-            })
-          } catch {
-            set((state) => {
-              const msgs = [...state.messages]
-              const lastMsg = msgs[msgs.length - 1]
-              if (lastMsg && lastMsg.role === 'assistant') {
-                lastMsg.error = 'Failed to parse response'
-              }
-              return { messages: msgs }
-            })
-          }
+            const errData = JSON.parse(event.data)
+            errorMsg = errData.message || errorMsg
+          } catch { /* use default */ }
+          set((state) => {
+            const msgs = [...state.messages]
+            const lastMsg = msgs[msgs.length - 1]
+            if (lastMsg && lastMsg.role === 'assistant') {
+              msgs[msgs.length - 1] = { ...lastMsg, error: errorMsg, isStreaming: false }
+            }
+            return { messages: msgs }
+          })
         }
       }
     } catch (err) {
@@ -117,7 +124,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         const msgs = [...state.messages]
         const lastMsg = msgs[msgs.length - 1]
         if (lastMsg && lastMsg.role === 'assistant') {
-          lastMsg.error = err instanceof Error ? err.message : 'Unknown error'
+          msgs[msgs.length - 1] = {
+            ...lastMsg,
+            error: err instanceof Error ? err.message : 'Unknown error',
+            isStreaming: false,
+          }
         }
         return { messages: msgs }
       })

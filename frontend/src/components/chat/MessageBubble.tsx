@@ -1,3 +1,4 @@
+import React from 'react'
 import type { Message } from '@/types'
 import CitationCard from './CitationCard'
 import Markdown from 'react-markdown'
@@ -8,7 +9,7 @@ interface Props {
   message: Message
 }
 
-export default function MessageBubble({ message }: Props) {
+function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
 
   return (
@@ -63,6 +64,9 @@ export default function MessageBubble({ message }: Props) {
             >
               {message.content}
             </Markdown>
+            {message.isStreaming && (
+              <span className="inline-block w-0.5 h-4 bg-foreground animate-blink align-middle ml-0.5" />
+            )}
           </div>
         )}
 
@@ -85,3 +89,5 @@ export default function MessageBubble({ message }: Props) {
     </div>
   )
 }
+
+export default React.memo(MessageBubble)

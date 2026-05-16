@@ -33,6 +33,7 @@ export interface Message {
   citations: Citation[]
   timestamp: number
   error?: string
+  isStreaming?: boolean
 }
 
 export interface Session {
