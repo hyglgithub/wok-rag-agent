@@ -2,22 +2,36 @@ import { useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { useChatStore } from '@/stores/chatStore'
 import { useSessionStore } from '@/stores/sessionStore'
+import { getSessionMessages } from '@/api/rag'
 import MessageBubble from '@/components/chat/MessageBubble'
 import ChatInput from '@/components/chat/ChatInput'
 import { MessageSquare, Loader2 } from 'lucide-react'
+import type { Message } from '@/types'
 
 export default function ChatPage() {
   const { sessionId } = useParams()
-  const { messages, isStreaming, streamingContent, sendMessage } = useChatStore()
+  const { messages, isStreaming, streamingContent, sendMessage, loadSession } = useChatStore()
   const { addLocalSession } = useSessionStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Load session from route param
+  // Load session messages from backend when navigating to /chat/:sessionId
   useEffect(() => {
     if (sessionId) {
       useChatStore.setState({ currentSessionId: sessionId })
+      getSessionMessages(sessionId).then((sessionMessages) => {
+        if (sessionMessages.length > 0) {
+          const messages: Message[] = sessionMessages.map((m, i) => ({
+            id: `hist-${sessionId}-${i}`,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            citations: m.citations || [],
+            timestamp: new Date(m.timestamp).getTime(),
+          }))
+          loadSession(sessionId, messages)
+        }
+      })
     }
-  }, [sessionId])
+  }, [sessionId, loadSession])
 
   // Scroll to bottom on new messages or streaming
   useEffect(() => {
