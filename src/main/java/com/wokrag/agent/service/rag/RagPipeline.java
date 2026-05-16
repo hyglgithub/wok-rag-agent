@@ -14,6 +14,7 @@ import com.wokrag.agent.service.memory.SessionMemoryService;
 import com.wokrag.agent.service.retrieval.HybridSearchService;
 import com.wokrag.agent.service.rewrite.QueryRewriter;
 import com.wokrag.agent.service.tool.FunctionCallService;
+import com.wokrag.agent.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class RagPipeline {
     private final SiliconFlowClient siliconFlowClient;
     private final PromptService promptService;
     private final IntentClassifier intentClassifier;
+    private final SessionRepository sessionRepository;
 
     public RagResponse execute(String question) {
         return execute(question, null);
@@ -116,6 +118,7 @@ public class RagPipeline {
             response.setCitations(new ArrayList<>());
         }
 
+        persistToSqlite(sessionId, question, answer, response.getCitations());
         log.info("Knowledge intent completed successfully");
         return response;
     }
@@ -140,6 +143,7 @@ public class RagPipeline {
         response.setSessionId(sessionId);
         response.setCitations(new ArrayList<>());
 
+        persistToSqlite(sessionId, question, answer, response.getCitations());
         log.info("Tool intent completed successfully");
         return response;
     }
@@ -172,6 +176,7 @@ public class RagPipeline {
         response.setSessionId(sessionId);
         response.setCitations(new ArrayList<>());
 
+        persistToSqlite(sessionId, question, answer, response.getCitations());
         log.info("Chitchat intent completed");
         return response;
     }
@@ -191,6 +196,7 @@ public class RagPipeline {
         response.setSessionId(sessionId);
         response.setCitations(new ArrayList<>());
 
+        persistToSqlite(sessionId, question, answer, response.getCitations());
         log.info("Clarification intent, returned guiding prompt");
         return response;
     }
@@ -315,6 +321,7 @@ public class RagPipeline {
                         } else {
                             response.setCitations(new ArrayList<>());
                         }
+                        persistToSqlite(sessionId, question, fullContent, response.getCitations());
                         callback.onComplete(response);
                     }
 
@@ -353,6 +360,7 @@ public class RagPipeline {
                         response.setAnswer(fullContent);
                         response.setSessionId(sessionId);
                         response.setCitations(new ArrayList<>());
+                        persistToSqlite(sessionId, question, fullContent, response.getCitations());
                         callback.onComplete(response);
                     }
 
@@ -390,6 +398,7 @@ public class RagPipeline {
         response.setSessionId(sessionId);
         response.setCitations(new ArrayList<>());
 
+        persistToSqlite(sessionId, question, answer, response.getCitations());
         callback.onToken(answer);
         callback.onComplete(response);
     }
@@ -466,6 +475,25 @@ public class RagPipeline {
             }
         }
         return citations;
+    }
+
+    private void persistToSqlite(String sessionId, String question, String answer,
+                              java.util.List<RagResponse.CitationInfo> citations) {
+        if (sessionId == null) return;
+        try {
+            // Save or update session (title = first user message, truncated to 50 chars)
+            String title = question.length() > 50 ? question.substring(0, 50) + "..." : question;
+            int messageCount = sessionMemoryService.getMessages(sessionId).size();
+            sessionRepository.updateSessionOnMessage(sessionId, title, messageCount);
+
+            // Save user message
+            sessionRepository.saveMessage(sessionId, "user", question, null);
+
+            // Save assistant message with citations
+            sessionRepository.saveMessage(sessionId, "assistant", answer, citations);
+        } catch (Exception e) {
+            log.warn("Failed to persist session to SQLite: {}", e.getMessage());
+        }
     }
 
     public interface StreamCallback {
