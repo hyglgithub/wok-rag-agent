@@ -1,0 +1,139 @@
+package com.wokrag.agent.controller;
+
+import com.wokrag.agent.client.MilvusClientWrapper;
+import com.wokrag.agent.config.RagConfig;
+import com.wokrag.agent.model.Chunk;
+import com.wokrag.agent.model.ParseResult;
+import com.wokrag.agent.repository.DocumentRepository;
+import com.wokrag.agent.service.document.ChunkService;
+import com.wokrag.agent.service.document.DocumentService;
+import com.wokrag.agent.service.embedding.EmbeddingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.*;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/documents")
+@RequiredArgsConstructor
+@Tag(name = "Documents", description = "Knowledge base document management")
+public class DocumentController {
+
+    private final DocumentService documentService;
+    private final ChunkService chunkService;
+    private final EmbeddingService embeddingService;
+    private final MilvusClientWrapper milvusClient;
+    private final DocumentRepository documentRepository;
+    private final RagConfig ragConfig;
+
+    @GetMapping
+    @Operation(summary = "List all documents")
+    public ResponseEntity<Map<String, Object>> listDocuments() {
+        List<Map<String, Object>> rows = documentRepository.findAll();
+
+        List<Map<String, Object>> documents = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> doc = new LinkedHashMap<>();
+            doc.put("id", row.get("doc_id"));
+            doc.put("name", row.get("name"));
+            doc.put("source", row.get("source") != null ? row.get("source") : "");
+            doc.put("uploadTime", row.get("upload_time"));
+            doc.put("chunkCount", row.get("chunk_count"));
+            documents.add(doc);
+        }
+
+        return ResponseEntity.ok(Map.of("documents", documents));
+    }
+
+    @PostMapping("/upload")
+    @Operation(summary = "Upload a document to the knowledge base")
+    public ResponseEntity<Map<String, Object>> uploadDocument(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "source", required = false) String source) {
+
+        String docId = UUID.randomUUID().toString();
+        String fileName = file.getOriginalFilename();
+        if (source == null || source.isEmpty()) {
+            source = fileName;
+        }
+
+        log.info("Uploading document: {} (docId={})", fileName, docId);
+
+        // Step 1: Parse file
+        ParseResult parseResult = documentService.parseFile(file);
+        if (!parseResult.isSuccess()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "PARSE_ERROR",
+                    "message", parseResult.getErrorMessage()
+            ));
+        }
+
+        // Step 2: Chunk text
+        List<Chunk> chunks = chunkService.chunkText(
+                parseResult.getContent(),
+                ragConfig.getChunkSize(),
+                ragConfig.getChunkOverlap(),
+                source
+        );
+
+        if (chunks.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "EMPTY_DOCUMENT",
+                    "message", "Document produced no usable content"
+            ));
+        }
+
+        // Step 3: Generate embeddings
+        List<String> texts = chunks.stream().map(Chunk::getContent).toList();
+        List<double[]> embeddings = embeddingService.embedBatch(texts);
+
+        // Step 4: Insert into Milvus
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            Chunk chunk = chunks.get(i);
+            Map<String, Object> row = new HashMap<>();
+            row.put("chunk_text", chunk.getContent());
+            row.put("text_dense", embeddings.get(i));
+            row.put("doc_id", docId);
+            row.put("source", source);
+            row.put("source_url", "");
+            rows.add(row);
+        }
+        milvusClient.insert(rows);
+
+        // Step 5: Save metadata to SQLite
+        documentRepository.save(docId, fileName, source, chunks.size());
+
+        log.info("Document uploaded successfully: {} ({} chunks)", fileName, chunks.size());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", docId);
+        result.put("name", fileName);
+        result.put("source", source);
+        result.put("uploadTime", java.time.LocalDateTime.now().toString());
+        result.put("chunkCount", chunks.size());
+
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/{docId}")
+    @Operation(summary = "Delete a document and its chunks")
+    public ResponseEntity<Map<String, String>> deleteDocument(@PathVariable String docId) {
+        log.info("Deleting document: {}", docId);
+
+        // Delete from Milvus
+        milvusClient.deleteByDocId(docId);
+
+        // Delete from SQLite
+        documentRepository.delete(docId);
+
+        log.info("Document deleted: {}", docId);
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+}
