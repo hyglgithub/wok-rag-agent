@@ -11,6 +11,7 @@ import io.milvus.v2.service.collection.request.CreateCollectionReq;
 import io.milvus.v2.service.collection.request.HasCollectionReq;
 import io.milvus.v2.service.collection.request.LoadCollectionReq;
 import io.milvus.v2.service.index.request.CreateIndexReq;
+import io.milvus.v2.service.vector.request.DeleteReq;
 import io.milvus.v2.service.vector.request.InsertReq;
 import io.milvus.v2.service.vector.request.SearchReq;
 import io.milvus.v2.service.vector.response.InsertResp;
@@ -182,6 +183,19 @@ public class MilvusClientWrapper {
             return resp.getSearchResults().get(0);
         } catch (Exception e) {
             throw new RagException.RetrievalException("Search failed", e);
+        }
+    }
+
+    public void deleteByDocId(String docId) {
+        try {
+            String expr = "doc_id == \"" + docId + "\"";
+            client.delete(DeleteReq.builder()
+                    .collectionName(config.getCollectionName())
+                    .filter(expr)
+                    .build());
+            log.info("Deleted Milvus chunks for doc_id: {}", docId);
+        } catch (Exception e) {
+            throw new RagException.RetrievalException("Failed to delete chunks for doc_id: " + docId, e);
         }
     }
 
