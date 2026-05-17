@@ -58,6 +58,28 @@ public class SessionController {
         return ResponseEntity.ok(Map.of("messages", messages));
     }
 
+    @GetMapping("/search")
+    @Operation(summary = "Search sessions by message content")
+    public ResponseEntity<Map<String, Object>> searchSessions(@RequestParam("q") String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return ResponseEntity.ok(Map.of("sessions", List.of()));
+        }
+
+        List<Map<String, Object>> rows = sessionRepository.searchByKeyword(keyword.trim());
+
+        List<Map<String, Object>> sessions = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> session = new LinkedHashMap<>();
+            session.put("sessionId", row.get("session_id"));
+            session.put("title", row.get("title"));
+            session.put("createdAt", row.get("created_at"));
+            session.put("matchedPreview", row.get("matched_preview") != null ? row.get("matched_preview") : "");
+            sessions.add(session);
+        }
+
+        return ResponseEntity.ok(Map.of("sessions", sessions));
+    }
+
     @DeleteMapping("/{sessionId}")
     @Operation(summary = "Delete a session")
     public ResponseEntity<Map<String, String>> deleteSession(@PathVariable String sessionId) {
