@@ -15,6 +15,7 @@ import {
   Menu,
 } from 'lucide-react'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 export default function Sidebar() {
   const navigate = useNavigate()
@@ -22,6 +23,7 @@ export default function Sidebar() {
   const { currentSessionId, clearMessages } = useChatStore()
   const { sessions, removeSession } = useSessionStore()
   const { confirm } = useConfirm()
+  const { settings } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -92,7 +94,7 @@ export default function Sidebar() {
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-border">
           {!collapsed && (
-            <span className="text-sm font-semibold text-foreground truncate">Wok RAG Agent</span>
+            <span className="text-sm font-semibold text-foreground truncate">{settings.sidebarTitle || 'Wok RAG Agent'}</span>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}

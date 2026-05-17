@@ -16,6 +16,7 @@ function loadSettings(): Settings {
     apiUrl: 'http://localhost:8080',
     theme: 'light',
     language: 'zh',
+    sidebarTitle: 'Wok RAG Agent',
   }
 }
 
@@ -28,6 +29,7 @@ interface SettingsState {
   updateTheme: (theme: 'light' | 'dark') => void
   updateApiUrl: (url: string) => void
   updateLanguage: (lang: 'zh' | 'en') => void
+  updateSidebarTitle: (title: string) => void
 }
 
 export const useSettingsStore = create<SettingsState>()((set) => {
@@ -60,6 +62,12 @@ export const useSettingsStore = create<SettingsState>()((set) => {
     updateLanguage: (lang) =>
       set((state) => {
         const next = { ...state.settings, language: lang }
+        persist(next)
+        return { settings: next }
+      }),
+    updateSidebarTitle: (title) =>
+      set((state) => {
+        const next = { ...state.settings, sidebarTitle: title }
         persist(next)
         return { settings: next }
       }),

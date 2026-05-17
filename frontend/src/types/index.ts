@@ -63,4 +63,5 @@ export interface Settings {
   apiUrl: string
   theme: 'light' | 'dark'
   language: 'zh' | 'en'
+  sidebarTitle: string
 }

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Settings, Sun, Moon, Globe } from 'lucide-react'
 
 export default function SettingsPage() {
-  const { settings, updateTheme, updateApiUrl, updateLanguage } = useSettingsStore()
+  const { settings, updateTheme, updateApiUrl, updateLanguage, updateSidebarTitle } = useSettingsStore()
 
   return (
     <div className="h-full overflow-y-auto">
@@ -66,6 +66,17 @@ export default function SettingsPage() {
                 English
               </Button>
             </div>
+          </div>
+
+          {/* Sidebar Title */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">侧边栏标题</label>
+            <Input
+              value={settings.sidebarTitle}
+              onChange={(e) => updateSidebarTitle(e.target.value)}
+              placeholder="Wok RAG Agent"
+            />
+            <p className="text-xs text-muted-foreground mt-1">自定义侧边栏顶部显示的标题</p>
           </div>
         </div>
       </div>
