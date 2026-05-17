@@ -4,6 +4,8 @@ import { getDocuments, uploadDocument, deleteDocument } from '@/api/document'
 import UploadDialog from '@/components/common/UploadDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useConfirm } from '@/components/ui/confirm-dialog'
+import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -19,6 +21,7 @@ export default function KnowledgePage() {
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showUpload, setShowUpload] = useState(false)
+  const { confirm } = useConfirm()
 
   const filteredDocs = useMemo(() => {
     if (!searchQuery) return documents
@@ -41,17 +44,23 @@ export default function KnowledgePage() {
       setDocuments((prev) => [result, ...prev])
       setShowUpload(false)
     } catch (err) {
-      alert('上传失败: ' + (err instanceof Error ? err.message : '未知错误'))
+      toast.error('上传失败: ' + (err instanceof Error ? err.message : '未知错误'))
     }
   }
 
   async function handleDelete(doc: DocumentInfo) {
-    if (!confirm(`确定删除 "${doc.name}"？`)) return
+    const ok = await confirm({
+      title: '删除文档',
+      description: `确定删除 "${doc.name}"？`,
+      confirmText: '删除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     try {
       await deleteDocument(doc.id)
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id))
     } catch {
-      alert('删除失败')
+      toast.error('删除失败')
     }
   }
 

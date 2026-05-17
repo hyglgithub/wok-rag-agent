@@ -4,18 +4,26 @@ import { useSessionStore } from '@/stores/sessionStore'
 import { useChatStore } from '@/stores/chatStore'
 import { Button } from '@/components/ui/button'
 import { History, MessageSquare, Trash2, Clock } from 'lucide-react'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 export default function HistoryPage() {
   const navigate = useNavigate()
   const { sessions, loading, fetchSessions, removeSession } = useSessionStore()
   const { currentSessionId, clearMessages } = useChatStore()
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     void fetchSessions()
   }, [fetchSessions])
 
   async function handleDelete(sessionId: string) {
-    if (!confirm('确定删除此会话？')) return
+    const ok = await confirm({
+      title: '删除会话',
+      description: '确定删除此会话？',
+      confirmText: '删除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     await removeSession(sessionId)
     if (currentSessionId === sessionId) {
       clearMessages()
