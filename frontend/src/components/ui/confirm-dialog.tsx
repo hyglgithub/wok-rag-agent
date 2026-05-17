@@ -1,4 +1,4 @@
-import { useState, useCallback, createContext, useContext, useRef } from 'react'
+import { useState, useCallback, useEffect, createContext, useContext, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -37,8 +37,20 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   })
   const resolveRef = useRef<((value: boolean) => void) | null>(null)
 
+  // Resolve dangling promise with false on unmount
+  useEffect(() => {
+    return () => {
+      resolveRef.current?.(false)
+      resolveRef.current = null
+    }
+  }, [])
+
   const confirm = useCallback((opts: ConfirmOptions): Promise<boolean> => {
     return new Promise<boolean>((resolve) => {
+      // Resolve previous pending promise with false before creating a new one
+      if (resolveRef.current) {
+        resolveRef.current(false)
+      }
       setOptions(opts)
       setOpen(true)
       resolveRef.current = resolve
@@ -47,11 +59,13 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
   function handleConfirm() {
     resolveRef.current?.(true)
+    resolveRef.current = null
     setOpen(false)
   }
 
   function handleCancel() {
     resolveRef.current?.(false)
+    resolveRef.current = null
     setOpen(false)
   }
 
