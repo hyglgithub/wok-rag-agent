@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Send } from 'lucide-react'
+import { Send, Square } from 'lucide-react'
 
 interface Props {
   disabled: boolean
+  isStreaming: boolean
   onSend: (question: string) => void
+  onStop: () => void
 }
 
-export default function ChatInput({ disabled, onSend }: Props) {
+export default function ChatInput({ disabled, isStreaming, onSend, onStop }: Props) {
   const [input, setInput] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -54,13 +56,19 @@ export default function ChatInput({ disabled, onSend }: Props) {
             className="flex-1 bg-transparent resize-none px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             style={{ maxHeight: '200px' }}
           />
-          <Button
-            onClick={handleSend}
-            disabled={disabled || !input.trim()}
-            size="icon"
-          >
-            <Send size={18} />
-          </Button>
+          {isStreaming ? (
+            <Button onClick={onStop} size="icon" variant="destructive">
+              <Square size={18} />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSend}
+              disabled={disabled || !input.trim()}
+              size="icon"
+            >
+              <Send size={18} />
+            </Button>
+          )}
         </div>
       </div>
     </div>

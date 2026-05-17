@@ -10,7 +10,7 @@ import type { Message } from '@/types'
 
 export default function ChatPage() {
   const { sessionId } = useParams()
-  const { messages, isStreaming, streamingContent, sendMessage, loadSession } = useChatStore()
+  const { messages, isStreaming, streamingContent, sendMessage, stopGeneration, loadSession } = useChatStore()
   const { addLocalSession } = useSessionStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -76,7 +76,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input area */}
-      <ChatInput disabled={isStreaming} onSend={handleSend} />
+      <ChatInput disabled={isStreaming} isStreaming={isStreaming} onSend={handleSend} onStop={stopGeneration} />
     </div>
   )
 }

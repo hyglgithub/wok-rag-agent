@@ -9,12 +9,13 @@ export function queryRag(request: QueryRequest): Promise<RagResponse> {
   })
 }
 
-export async function streamRag(request: QueryRequest): Promise<Response> {
+export async function streamRag(request: QueryRequest, signal?: AbortSignal): Promise<Response> {
   const url = `${useSettingsStore.getState().settings.apiUrl}/api/rag/stream`
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
+    signal,
   })
   if (!response.ok) {
     const error = await response.json().catch(() => ({

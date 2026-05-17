@@ -8,7 +8,9 @@ interface ChatState {
   currentSessionId: string | null
   isStreaming: boolean
   streamingContent: string
+  abortController: AbortController | null
   sendMessage: (question: string) => Promise<void>
+  stopGeneration: () => void
   clearMessages: () => void
   loadSession: (sessionId: string, messages: Message[]) => void
 }
@@ -26,6 +28,20 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   currentSessionId: null,
   isStreaming: false,
   streamingContent: '',
+  abortController: null,
+
+  stopGeneration: () => {
+    const state = get()
+    state.abortController?.abort()
+    set((s) => {
+      const msgs = [...s.messages]
+      const lastMsg = msgs[msgs.length - 1]
+      if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isStreaming) {
+        msgs[msgs.length - 1] = { ...lastMsg, isStreaming: false }
+      }
+      return { messages: msgs, isStreaming: false, streamingContent: '', abortController: null }
+    })
+  },
 
   clearMessages: () =>
     set({ messages: [], currentSessionId: null }),
@@ -56,18 +72,21 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
     const sessionId = state.currentSessionId || generateSessionId()
 
+    const abortController = new AbortController()
+
     set({
       messages: [...state.messages, userMessage, assistantMessage],
       currentSessionId: sessionId,
       isStreaming: true,
       streamingContent: '',
+      abortController,
     })
 
     try {
       const response = await streamRag({
         question: question.trim(),
         sessionId,
-      })
+      }, abortController.signal)
 
       const body = response.body
       if (!body) throw new Error('Response body is null')
@@ -120,20 +139,31 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         }
       }
     } catch (err) {
-      set((state) => {
-        const msgs = [...state.messages]
-        const lastMsg = msgs[msgs.length - 1]
-        if (lastMsg && lastMsg.role === 'assistant') {
-          msgs[msgs.length - 1] = {
-            ...lastMsg,
-            error: err instanceof Error ? err.message : 'Unknown error',
-            isStreaming: false,
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        set((s) => {
+          const msgs = [...s.messages]
+          const lastMsg = msgs[msgs.length - 1]
+          if (lastMsg && lastMsg.role === 'assistant') {
+            msgs[msgs.length - 1] = { ...lastMsg, isStreaming: false }
           }
-        }
-        return { messages: msgs }
-      })
+          return { messages: msgs }
+        })
+      } else {
+        set((state) => {
+          const msgs = [...state.messages]
+          const lastMsg = msgs[msgs.length - 1]
+          if (lastMsg && lastMsg.role === 'assistant') {
+            msgs[msgs.length - 1] = {
+              ...lastMsg,
+              error: err instanceof Error ? err.message : 'Unknown error',
+              isStreaming: false,
+            }
+          }
+          return { messages: msgs }
+        })
+      }
     } finally {
-      set({ isStreaming: false, streamingContent: '' })
+      set({ isStreaming: false, streamingContent: '', abortController: null })
     }
   },
 }))
