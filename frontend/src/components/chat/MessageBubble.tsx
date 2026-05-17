@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import type { Message } from '@/types'
 import CitationCard from './CitationCard'
 import Markdown from 'react-markdown'
@@ -11,6 +11,10 @@ interface Props {
 
 function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
+  const sortedCitations = useMemo(
+    () => [...message.citations].sort((a, b) => a.index - b.index),
+    [message.citations]
+  )
 
   return (
     <div className={`flex gap-3 py-4 px-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -73,7 +77,7 @@ function MessageBubble({ message }: Props) {
         {/* Citations */}
         {message.citations.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border space-y-2">
-            {message.citations.map((citation) => (
+            {sortedCitations.map((citation) => (
               <CitationCard key={citation.index} citation={citation} />
             ))}
           </div>
