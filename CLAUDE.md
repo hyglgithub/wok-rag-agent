@@ -121,6 +121,58 @@ Auto-created on startup (`MilvusClientWrapper`): fields are `id` (Int64 PK, auto
 - **Dockerfile**: Multi-stage build (Maven builder → Alpine JRE). Non-root user, container-aware JVM.
 - **docker-compose.yml**: App service with `depends_on: standalone (service_healthy)`, env vars for API key, Milvus URI, profile.
 
+## Frontend
+
+React SPA under `frontend/`, built with Vite 8 + TypeScript 6 + Tailwind CSS v4.
+
+```bash
+cd frontend
+npm install
+npm run dev      # Vite dev server (hot reload)
+npm run build    # tsc + vite build (outputs to frontend/dist/)
+npm run lint     # ESLint
+```
+
+### Tech Stack
+
+- **React 19** with react-router-dom v7 for routing
+- **Zustand** for state management (stores in `src/stores/`)
+- **react-markdown** + **remark-gfm** for AI answer rendering
+- **shadcn/ui** components (Tailwind-based)
+- **lucide-react** for icons
+
+### Frontend Architecture
+
+```
+frontend/src/
+├── api/            # HTTP client layer (fetch wrappers)
+│   ├── client.ts   # Base fetch config (API_URL, headers)
+│   └── rag.ts      # streamRag() — POST /api/rag/stream, returns raw Response
+├── components/     # Reusable UI components
+│   └── chat/       # MessageBubble, CitationCard, ChatInput
+├── lib/
+│   ├── sseParser.ts  # Async generator: ReadableStream → SSEEvent objects
+│   └── utils.ts      # Tailwind merge helper
+├── stores/         # Zustand stores
+│   ├── chatStore.ts    # Messages, streaming state, sendMessage()
+│   ├── sessionStore.ts # Session list CRUD
+│   └── settingsStore.ts # App settings (theme, language, API URL)
+├── types/index.ts  # Shared TypeScript interfaces
+└── pages/          # Route pages (ChatPage, History, Knowledge, Settings)
+```
+
+### SSE Streaming Pattern
+
+The chat uses POST-based SSE (not `EventSource`, which only supports GET). The flow:
+
+1. `chatStore.sendMessage()` calls `streamRag()` which returns a raw `fetch` `Response`
+2. `parseSSEStream(response.body)` is an async generator that yields `SSEEvent` objects
+3. Three event types from backend: `token` (plain text), `done` (JSON RagResponse), `error` (JSON)
+4. Each `token` event appends to the assistant message content via Zustand `set()`
+5. `done` event overwrites with final answer + citations (reconciliation)
+6. `MessageBubble` shows a blinking cursor (`animate-blink`) while `isStreaming` is true
+7. `React.memo` on `MessageBubble` prevents cascade re-renders during streaming
+
 ## Config Properties
 
 Nine `@ConfigurationProperties` classes under `config/`:
