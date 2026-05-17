@@ -40,3 +40,13 @@ export async function uploadDocument(file: File, source?: string): Promise<Docum
 export async function deleteDocument(docId: string): Promise<void> {
   await apiFetch(`/api/documents/${docId}`, { method: 'DELETE' })
 }
+
+export function downloadDocument(docId: string) {
+  const baseUrl = useSettingsStore.getState().settings.apiUrl
+  window.open(`${baseUrl}/api/documents/${docId}/download`, '_blank')
+}
+
+export function getPreviewUrl(docId: string): string {
+  const baseUrl = useSettingsStore.getState().settings.apiUrl
+  return `${baseUrl}/api/documents/${docId}/preview`
+}

@@ -102,3 +102,8 @@ springdoc:
 # CORS Configuration
 cors:
   allowed-origins: "*"
+
+# File Storage
+file:
+  storage:
+    path: data/documents/

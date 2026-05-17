@@ -14,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Database, Trash2, Upload, Search, FileText } from 'lucide-react'
+import { Database, Trash2, Upload, Search, FileText, Download, Eye } from 'lucide-react'
+import { downloadDocument, getPreviewUrl } from '@/api/document'
 
 export default function KnowledgePage() {
   const [documents, setDocuments] = useState<DocumentInfo[]>([])
@@ -121,6 +122,24 @@ export default function KnowledgePage() {
                       {new Date(doc.uploadTime).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => downloadDocument(doc.id)}
+                        title="下载"
+                      >
+                        <Download size={16} />
+                      </Button>
+                      {doc.name.toLowerCase().endsWith('.pdf') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(getPreviewUrl(doc.id), '_blank')}
+                          title="预览"
+                        >
+                          <Eye size={16} />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"

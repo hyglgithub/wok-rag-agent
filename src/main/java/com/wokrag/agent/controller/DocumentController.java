@@ -7,11 +7,15 @@ import com.wokrag.agent.model.ParseResult;
 import com.wokrag.agent.repository.DocumentRepository;
 import com.wokrag.agent.service.document.ChunkService;
 import com.wokrag.agent.service.document.DocumentService;
+import com.wokrag.agent.service.document.FileStorageService;
 import com.wokrag.agent.service.embedding.EmbeddingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,6 +38,7 @@ public class DocumentController {
     private final MilvusClientWrapper milvusClient;
     private final DocumentRepository documentRepository;
     private final RagConfig ragConfig;
+    private final FileStorageService fileStorageService;
 
     @GetMapping
     @Operation(summary = "List all documents")
@@ -135,8 +140,11 @@ public class DocumentController {
         }
         milvusClient.insert(rows);
 
-        // Step 5: Save metadata to SQLite
-        documentRepository.save(docId, fileName, source, chunks.size(), fileHash, "");
+        // Step 5: Store original file
+        String filePath = fileStorageService.store(docId, fileName, file.getBytes());
+
+        // Step 6: Save metadata to SQLite
+        documentRepository.save(docId, fileName, source, chunks.size(), fileHash, filePath);
 
         log.info("Document uploaded successfully: {} ({} chunks)", fileName, chunks.size());
 
@@ -150,6 +158,38 @@ public class DocumentController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/{docId}/download")
+    @Operation(summary = "Download original document file")
+    public ResponseEntity<Resource> downloadDocument(@PathVariable String docId) {
+        String filePath = documentRepository.findFilePath(docId);
+        if (filePath == null || filePath.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String[] parts = filePath.split("/", 2);
+        Resource resource = fileStorageService.load(parts[0], parts[1]);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + parts[1] + "\"")
+                .body(resource);
+    }
+
+    @GetMapping("/{docId}/preview")
+    @Operation(summary = "Preview document file (for PDF inline viewing)")
+    public ResponseEntity<Resource> previewDocument(@PathVariable String docId) {
+        String filePath = documentRepository.findFilePath(docId);
+        if (filePath == null || filePath.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String[] parts = filePath.split("/", 2);
+        Resource resource = fileStorageService.load(parts[0], parts[1]);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + parts[1] + "\"")
+                .body(resource);
+    }
+
     @DeleteMapping("/{docId}")
     @Operation(summary = "Delete a document and its chunks")
     public ResponseEntity<Map<String, String>> deleteDocument(@PathVariable String docId) {
@@ -157,6 +197,9 @@ public class DocumentController {
 
         // Delete from Milvus
         milvusClient.deleteByDocId(docId);
+
+        // Delete stored files
+        fileStorageService.delete(docId);
 
         // Delete from SQLite
         documentRepository.delete(docId);
