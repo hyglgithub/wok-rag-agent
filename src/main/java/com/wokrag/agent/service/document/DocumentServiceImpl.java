@@ -11,10 +11,13 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.SAXException;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -39,9 +42,19 @@ public class DocumentServiceImpl implements DocumentService {
         log.info("Parsing file: {}, size: {} bytes", originalFilename, file.getSize());
 
         try {
-            String mimeType;
+            String mimeType = "unknown";
+            //try (InputStream detectStream = file.getInputStream()) {
+            //    mimeType = tika.detect(detectStream, originalFilename);
+            //}
+
             try (InputStream detectStream = file.getInputStream()) {
+                // 2. 核心：Tika检测文件类型
                 mimeType = tika.detect(detectStream, originalFilename);
+                System.out.println("检测到的文件类型：" + mimeType);
+            } catch (Throwable t) {
+                // 5. 捕获Error（比如Tika依赖缺失的严重错误）
+                System.err.println("检测发生严重错误：" + t.getMessage());
+                t.printStackTrace();
             }
 
             BodyContentHandler handler = new BodyContentHandler(MAX_TEXT_LENGTH);

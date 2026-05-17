@@ -1,6 +1,8 @@
 spring:
   application:
     name: wok-rag-agent
+  profiles:
+    active: dev
   datasource:
     url: jdbc:sqlite:data/wok-rag.db
     driver-class-name: org.sqlite.JDBC

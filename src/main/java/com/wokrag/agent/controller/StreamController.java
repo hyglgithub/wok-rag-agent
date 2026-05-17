@@ -44,7 +44,7 @@ public class StreamController {
                                     emitter.send(SseEmitter.event()
                                             .name("token")
                                             .data(token));
-                                    log.info("SSE send token: {}", token);
+                                    // log.info("SSE send token: {}", token);
                                 } catch (IOException e) {
                                     log.warn("SSE send failed", e);
                                 }

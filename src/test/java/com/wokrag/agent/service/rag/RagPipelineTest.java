@@ -3,6 +3,7 @@ package com.wokrag.agent.service.rag;
 import com.wokrag.agent.client.SiliconFlowClient;
 import com.wokrag.agent.model.RagResponse;
 import com.wokrag.agent.model.SearchResult;
+import com.wokrag.agent.repository.SessionRepository;
 import com.wokrag.agent.service.embedding.EmbeddingService;
 import com.wokrag.agent.service.generation.LlmService;
 import com.wokrag.agent.service.generation.PromptService;
@@ -43,6 +44,9 @@ class RagPipelineTest {
     private PromptService promptService;
     @Mock
     private IntentClassifier intentClassifier;
+    @Mock
+    private SessionRepository sessionRepository;
+
 
     private RagPipeline ragPipeline;
 
@@ -52,7 +56,7 @@ class RagPipelineTest {
         ragPipeline = new RagPipeline(
                 embeddingService, hybridSearchService, llmService,
                 sessionMemoryService, queryRewriter, functionCallService,
-                siliconFlowClient, promptService, intentClassifier);
+                siliconFlowClient, promptService, intentClassifier, sessionRepository);
 
         // Default: classify as knowledge intent
         when(intentClassifier.classify(any(), anyString()))
