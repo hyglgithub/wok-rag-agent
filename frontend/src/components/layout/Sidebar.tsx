@@ -14,12 +14,14 @@ import {
   Trash2,
   Menu,
 } from 'lucide-react'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const { currentSessionId, clearMessages } = useChatStore()
   const { sessions, removeSession } = useSessionStore()
+  const { confirm } = useConfirm()
   const [collapsed, setCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
@@ -48,6 +50,18 @@ export default function Sidebar() {
 
   function isActive(path: string): boolean {
     return location.pathname === path || location.pathname.startsWith(path + '/')
+  }
+
+  async function handleDeleteSession(sessionId: string) {
+    const confirmed = await confirm({
+      title: '删除会话',
+      description: '确定删除此会话？此操作不可撤销。',
+      variant: 'destructive',
+      confirmText: '删除',
+    })
+    if (confirmed) {
+      await removeSession(sessionId)
+    }
   }
 
   return (
@@ -122,7 +136,7 @@ export default function Sidebar() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      void removeSession(session.sessionId)
+                      void handleDeleteSession(session.sessionId)
                     }}
                     className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                   >
