@@ -23,6 +23,10 @@ export async function uploadDocument(file: File, source?: string): Promise<Docum
   })
 
   if (!response.ok) {
+    if (response.status === 409) {
+      const err = await response.json().catch(() => ({ message: '文件已存在' }))
+      throw new Error(err.message || '文件已存在')
+    }
     const error = await response.json().catch(() => ({
       errorCode: 'UPLOAD_ERROR',
       errorMessage: `HTTP ${response.status}`,

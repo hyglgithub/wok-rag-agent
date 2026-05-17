@@ -16,7 +16,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import org.springframework.http.HttpStatus;
 
 @Slf4j
 @RestController
@@ -65,6 +68,31 @@ public class DocumentController {
 
         log.info("Uploading document: {} (docId={})", fileName, docId);
 
+        // Step 0: Compute file hash and check for duplicates
+        String fileHash;
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = md.digest(file.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            fileHash = sb.toString();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "error", "HASH_ERROR",
+                    "message", "Failed to compute file hash"
+            ));
+        }
+
+        Map<String, Object> existing = documentRepository.findByHash(fileHash);
+        if (existing != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "DUPLICATE_FILE",
+                    "message", "文件已存在: " + existing.get("name")
+            ));
+        }
+
         // Step 1: Parse file
         ParseResult parseResult = documentService.parseFile(file);
         if (!parseResult.isSuccess()) {
@@ -108,7 +136,7 @@ public class DocumentController {
         milvusClient.insert(rows);
 
         // Step 5: Save metadata to SQLite
-        documentRepository.save(docId, fileName, source, chunks.size());
+        documentRepository.save(docId, fileName, source, chunks.size(), fileHash, "");
 
         log.info("Document uploaded successfully: {} ({} chunks)", fileName, chunks.size());
 

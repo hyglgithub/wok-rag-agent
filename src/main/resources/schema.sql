@@ -21,5 +21,7 @@ CREATE TABLE IF NOT EXISTS documents (
     name TEXT NOT NULL,
     source TEXT,
     upload_time TEXT NOT NULL DEFAULT (datetime('now')),
-    chunk_count INTEGER NOT NULL DEFAULT 0
+    chunk_count INTEGER NOT NULL DEFAULT 0,
+    file_hash TEXT NOT NULL DEFAULT '',
+    file_path TEXT NOT NULL DEFAULT ''
 );
