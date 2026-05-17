@@ -65,3 +65,10 @@ export interface Settings {
   language: 'zh' | 'en'
   sidebarTitle: string
 }
+
+export interface ChunkInfo {
+  milvusId: number
+  chunkText: string
+  chunkIndex: number
+  source: string
+}

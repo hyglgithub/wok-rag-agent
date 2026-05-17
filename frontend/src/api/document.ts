@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { DocumentInfo } from '@/types'
+import type { DocumentInfo, ChunkInfo } from '@/types'
 import { useSettingsStore } from '@/stores/settingsStore'
 
 export async function getDocuments(): Promise<DocumentInfo[]> {
@@ -49,4 +49,25 @@ export function downloadDocument(docId: string) {
 export function getPreviewUrl(docId: string): string {
   const baseUrl = useSettingsStore.getState().settings.apiUrl
   return `${baseUrl}/api/documents/${docId}/preview`
+}
+
+export async function getDocumentChunks(docId: string): Promise<ChunkInfo[]> {
+  const res = await apiFetch<{ chunks: ChunkInfo[] }>(`/api/documents/${docId}/chunks`)
+  return res.chunks
+}
+
+export async function updateChunk(milvusId: number, text: string): Promise<void> {
+  await apiFetch(`/api/documents/chunks/${milvusId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function addChunk(docId: string, text: string): Promise<void> {
+  await apiFetch(`/api/documents/${docId}/chunks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
 }

@@ -14,14 +14,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Database, Trash2, Upload, Search, FileText, Download, Eye } from 'lucide-react'
+import { Database, Trash2, Upload, Search, FileText, Download, Eye, Layers } from 'lucide-react'
 import { downloadDocument, getPreviewUrl } from '@/api/document'
+import ChunkManagerDialog from '@/components/common/ChunkManagerDialog'
 
 export default function KnowledgePage() {
   const [documents, setDocuments] = useState<DocumentInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showUpload, setShowUpload] = useState(false)
+  const [chunkDialog, setChunkDialog] = useState<{ open: boolean; docId: string; docName: string }>({
+    open: false, docId: '', docName: '',
+  })
   const { confirm } = useConfirm()
 
   const filteredDocs = useMemo(() => {
@@ -125,6 +129,14 @@ export default function KnowledgePage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => setChunkDialog({ open: true, docId: doc.id, docName: doc.name })}
+                        title="查看切片"
+                      >
+                        <Layers size={16} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => downloadDocument(doc.id)}
                         title="下载"
                       >
@@ -161,6 +173,13 @@ export default function KnowledgePage() {
         open={showUpload}
         onClose={() => setShowUpload(false)}
         onUpload={(file, source) => void handleUpload(file, source)}
+      />
+
+      <ChunkManagerDialog
+        open={chunkDialog.open}
+        onClose={() => setChunkDialog({ ...chunkDialog, open: false })}
+        docId={chunkDialog.docId}
+        docName={chunkDialog.docName}
       />
     </div>
   )
