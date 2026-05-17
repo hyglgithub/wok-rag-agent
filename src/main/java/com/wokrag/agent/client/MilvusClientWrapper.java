@@ -13,8 +13,11 @@ import io.milvus.v2.service.collection.request.LoadCollectionReq;
 import io.milvus.v2.service.index.request.CreateIndexReq;
 import io.milvus.v2.service.vector.request.DeleteReq;
 import io.milvus.v2.service.vector.request.InsertReq;
+import io.milvus.v2.service.vector.request.QueryReq;
 import io.milvus.v2.service.vector.request.SearchReq;
+import io.milvus.v2.service.vector.request.UpsertReq;
 import io.milvus.v2.service.vector.response.InsertResp;
+import io.milvus.v2.service.vector.response.QueryResp;
 import io.milvus.v2.service.vector.response.SearchResp;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -196,6 +199,37 @@ public class MilvusClientWrapper {
             log.info("Deleted Milvus chunks for doc_id: {}", docId);
         } catch (Exception e) {
             throw new RagException.RetrievalException("Failed to delete chunks for doc_id: " + docId, e);
+        }
+    }
+
+    public List<QueryResp.QueryResult> queryByDocId(String docId) {
+        try {
+            String expr = "doc_id == \"" + docId + "\"";
+            QueryResp resp = client.query(QueryReq.builder()
+                    .collectionName(config.getCollectionName())
+                    .filter(expr)
+                    .outputFields(List.of("id", "chunk_text", "doc_id", "source"))
+                    .build());
+            return resp.getQueryResults();
+        } catch (Exception e) {
+            throw new RagException.RetrievalException("Failed to query chunks for doc_id: " + docId, e);
+        }
+    }
+
+    public void updateByPrimaryKey(long id, String chunkText, float[] vector) {
+        try {
+            JsonObject row = new JsonObject();
+            row.addProperty("id", id);
+            row.addProperty("chunk_text", chunkText);
+            row.add("text_dense", gson.toJsonTree(vector));
+
+            client.upsert(UpsertReq.builder()
+                    .collectionName(config.getCollectionName())
+                    .data(List.of(row))
+                    .build());
+            log.info("Updated Milvus chunk id={}", id);
+        } catch (Exception e) {
+            throw new RagException.RetrievalException("Failed to update chunk id=" + id, e);
         }
     }
 

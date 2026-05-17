@@ -190,6 +190,71 @@ public class DocumentController {
                 .body(resource);
     }
 
+    @GetMapping("/{docId}/chunks")
+    @Operation(summary = "Get all chunks for a document")
+    public ResponseEntity<Map<String, Object>> getChunks(@PathVariable String docId) {
+        var results = milvusClient.queryByDocId(docId);
+
+        List<Map<String, Object>> chunks = new ArrayList<>();
+        for (int i = 0; i < results.size(); i++) {
+            var result = results.get(i);
+            Map<String, Object> chunk = new LinkedHashMap<>();
+            var entity = result.getEntity();
+            chunk.put("milvusId", entity.get("id"));
+            chunk.put("chunkText", entity.get("chunk_text"));
+            chunk.put("chunkIndex", i);
+            chunk.put("source", entity.get("source"));
+            chunks.add(chunk);
+        }
+
+        return ResponseEntity.ok(Map.of("chunks", chunks));
+    }
+
+    @PutMapping("/chunks/{milvusId}")
+    @Operation(summary = "Update a chunk's text and re-embed")
+    public ResponseEntity<Map<String, String>> updateChunk(
+            @PathVariable long milvusId,
+            @RequestBody Map<String, String> body) {
+        String newText = body.get("text");
+        if (newText == null || newText.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
+        }
+
+        List<double[]> embeddings = embeddingService.embedBatch(List.of(newText));
+        float[] vector = toFloatArray(embeddings.get(0));
+        milvusClient.updateByPrimaryKey(milvusId, newText, vector);
+
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    @PostMapping("/{docId}/chunks")
+    @Operation(summary = "Add a new chunk to a document")
+    public ResponseEntity<Map<String, Object>> addChunk(
+            @PathVariable String docId,
+            @RequestBody Map<String, String> body) {
+        String text = body.get("text");
+        if (text == null || text.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "text is required"));
+        }
+
+        String source = documentRepository.findNameByDocId(docId);
+
+        List<double[]> embeddings = embeddingService.embedBatch(List.of(text));
+        float[] vector = toFloatArray(embeddings.get(0));
+
+        Map<String, Object> row = new HashMap<>();
+        row.put("chunk_text", text);
+        row.put("text_dense", vector);
+        row.put("doc_id", docId);
+        row.put("source", source);
+        row.put("source_url", "");
+        milvusClient.insert(List.of(row));
+
+        documentRepository.incrementChunkCount(docId);
+
+        return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
     @DeleteMapping("/{docId}")
     @Operation(summary = "Delete a document and its chunks")
     public ResponseEntity<Map<String, String>> deleteDocument(@PathVariable String docId) {
@@ -206,5 +271,13 @@ public class DocumentController {
 
         log.info("Document deleted: {}", docId);
         return ResponseEntity.ok(Map.of("status", "ok"));
+    }
+
+    private float[] toFloatArray(double[] doubles) {
+        float[] floats = new float[doubles.length];
+        for (int i = 0; i < doubles.length; i++) {
+            floats[i] = (float) doubles[i];
+        }
+        return floats;
     }
 }
