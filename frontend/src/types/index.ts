@@ -72,3 +72,10 @@ export interface ChunkInfo {
   chunkIndex: number
   source: string
 }
+
+export interface SearchResult {
+  sessionId: string
+  title: string
+  createdAt: string
+  matchedPreview: string
+}

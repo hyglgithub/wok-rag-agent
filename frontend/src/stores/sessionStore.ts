@@ -1,18 +1,25 @@
 import { create } from 'zustand'
 import type { Session } from '@/types'
-import { getSessions, deleteSession as apiDeleteSession } from '@/api/rag'
+import { getSessions, deleteSession as apiDeleteSession, searchSessions as apiSearchSessions } from '@/api/rag'
+import type { SearchResult } from '@/types'
 
 interface SessionState {
   sessions: Session[]
   loading: boolean
+  searchResults: SearchResult[]
+  isSearching: boolean
   fetchSessions: () => Promise<void>
   removeSession: (sessionId: string) => Promise<void>
   addLocalSession: (sessionId: string, title: string) => void
+  searchSessions: (keyword: string) => Promise<void>
+  clearSearch: () => void
 }
 
 export const useSessionStore = create<SessionState>()((set) => ({
   sessions: [],
   loading: false,
+  searchResults: [],
+  isSearching: false,
 
   fetchSessions: async () => {
     set({ loading: true })
@@ -52,4 +59,20 @@ export const useSessionStore = create<SessionState>()((set) => ({
       }
     })
   },
+
+  searchSessions: async (keyword: string) => {
+    if (!keyword.trim()) {
+      set({ searchResults: [], isSearching: false })
+      return
+    }
+    set({ isSearching: true })
+    try {
+      const results = await apiSearchSessions(keyword)
+      set({ searchResults: results })
+    } finally {
+      set({ isSearching: false })
+    }
+  },
+
+  clearSearch: () => set({ searchResults: [], isSearching: false }),
 }))

@@ -1,6 +1,6 @@
 import { apiFetch } from './client'
 import { useSettingsStore } from '@/stores/settingsStore'
-import type { QueryRequest, RagResponse, HealthResponse, Session, SessionMessage } from '@/types'
+import type { QueryRequest, RagResponse, HealthResponse, Session, SessionMessage, SearchResult } from '@/types'
 
 export function queryRag(request: QueryRequest): Promise<RagResponse> {
   return apiFetch<RagResponse>('/api/rag/query', {
@@ -54,4 +54,15 @@ export async function getSessionMessages(sessionId: string): Promise<SessionMess
 
 export async function deleteSession(sessionId: string): Promise<void> {
   await apiFetch(`/api/rag/sessions/${sessionId}`, { method: 'DELETE' })
+}
+
+export async function searchSessions(keyword: string): Promise<SearchResult[]> {
+  try {
+    const res = await apiFetch<{ sessions: SearchResult[] }>(
+      `/api/rag/sessions/search?q=${encodeURIComponent(keyword)}`
+    )
+    return res.sessions
+  } catch {
+    return []
+  }
 }
