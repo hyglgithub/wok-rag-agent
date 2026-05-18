@@ -16,20 +16,23 @@ export default function ChatPage() {
 
   // Load session messages from backend when navigating to /chat/:sessionId
   useEffect(() => {
-    if (sessionId) {
-      useChatStore.setState({ currentSessionId: sessionId })
-      getSessionMessages(sessionId).then((sessionMessages) => {
-        if (sessionMessages.length > 0) {
-          const messages: Message[] = sessionMessages.map((m, i) => ({
-            id: `hist-${sessionId}-${i}`,
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-            citations: m.citations || [],
-            timestamp: new Date(m.timestamp).getTime(),
-          }))
-          loadSession(sessionId, messages)
-        }
-      })
+    if (!sessionId) return
+    let isActive = true
+    useChatStore.setState({ currentSessionId: sessionId })
+    loadSession(sessionId, [])
+    getSessionMessages(sessionId).then((sessionMessages) => {
+      if (!isActive) return
+      const messages: Message[] = sessionMessages.map((m, i) => ({
+        id: `hist-${sessionId}-${i}`,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        citations: m.citations || [],
+        timestamp: new Date(m.timestamp).getTime(),
+      }))
+      loadSession(sessionId, messages)
+    })
+    return () => {
+      isActive = false
     }
   }, [sessionId, loadSession])
 

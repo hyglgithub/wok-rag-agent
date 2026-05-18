@@ -216,16 +216,58 @@ public class MilvusClientWrapper {
         }
     }
 
+    public void deleteByPrimaryKey(long id) {
+        try {
+            String expr = "id == " + id;
+            client.delete(DeleteReq.builder()
+                    .collectionName(config.getCollectionName())
+                    .filter(expr)
+                    .build());
+            log.info("Deleted Milvus chunk id={}", id);
+        } catch (Exception e) {
+            throw new RagException.RetrievalException("Failed to delete chunk id=" + id, e);
+        }
+    }
+
+    public Map<String, Object> getByPrimaryKey(long id) {
+        try {
+            String expr = "id == " + id;
+            QueryResp resp = client.query(QueryReq.builder()
+                    .collectionName(config.getCollectionName())
+                    .filter(expr)
+                    .outputFields(List.of("chunk_text", "text_dense", "doc_id", "source", "source_url"))
+                    .build());
+            
+            List<QueryResp.QueryResult> results = resp.getQueryResults();
+            if (results.isEmpty()) {
+                throw new RagException.RetrievalException("Chunk not found with id=" + id);
+            }
+            
+            return results.get(0).getEntity();
+        } catch (Exception e) {
+            throw new RagException.RetrievalException("Failed to query chunk id=" + id, e);
+        }
+    }
+
     public void updateByPrimaryKey(long id, String chunkText, float[] vector) {
         try {
-            JsonObject row = new JsonObject();
-            row.addProperty("id", id);
-            row.addProperty("chunk_text", chunkText);
-            row.add("text_dense", gson.toJsonTree(vector));
-
+            // 将 float[] 转换为 List<Float>
+            List<Float> vectorList = new ArrayList<>(vector.length);
+            for (float v : vector) {
+                vectorList.add(v);
+            }
+            
+            // 构建完整的新记录
+            Map<String, Object> newRow = new HashMap<>();
+            newRow.put("id", id);
+            newRow.put("chunk_text", chunkText);
+            newRow.put("text_dense", vectorList);
+            
+            // 直接 upsert (Milvus 内部会处理 delete+insert)
+            JsonObject jsonRow = gson.toJsonTree(newRow).getAsJsonObject();
             client.upsert(UpsertReq.builder()
                     .collectionName(config.getCollectionName())
-                    .data(List.of(row))
+                    .data(List.of(jsonRow))
                     .build());
             log.info("Updated Milvus chunk id={}", id);
         } catch (Exception e) {

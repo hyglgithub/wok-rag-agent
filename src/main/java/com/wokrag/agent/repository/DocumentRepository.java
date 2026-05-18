@@ -50,6 +50,13 @@ public class DocumentRepository {
         );
     }
 
+    public void decrementChunkCount(String docId) {
+        jdbc.update(
+                "UPDATE documents SET chunk_count = MAX(chunk_count - 1, 0) WHERE doc_id = ?",
+                docId
+        );
+    }
+
     public String findNameByDocId(String docId) {
         return jdbc.queryForObject(
                 "SELECT name FROM documents WHERE doc_id = ?",

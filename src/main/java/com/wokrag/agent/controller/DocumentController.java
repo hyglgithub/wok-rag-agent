@@ -141,7 +141,16 @@ public class DocumentController {
         milvusClient.insert(rows);
 
         // Step 5: Store original file
-        String filePath = fileStorageService.store(docId, fileName, file.getBytes());
+        String filePath;
+        try {
+            filePath = fileStorageService.store(docId, fileName, file.getBytes());
+        } catch (Exception e) {
+            log.error("Failed to store file: {}", fileName, e);
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "error", "FILE_STORAGE_ERROR",
+                    "message", "Failed to store file: " + e.getMessage()
+            ));
+        }
 
         // Step 6: Save metadata to SQLite
         documentRepository.save(docId, fileName, source, chunks.size(), fileHash, filePath);
@@ -208,6 +217,16 @@ public class DocumentController {
         }
 
         return ResponseEntity.ok(Map.of("chunks", chunks));
+    }
+
+    @DeleteMapping("/chunks/{milvusId}")
+    @Operation(summary = "Delete a single chunk")
+    public ResponseEntity<Map<String, String>> deleteChunk(
+            @PathVariable long milvusId,
+            @RequestParam String docId) {
+        milvusClient.deleteByPrimaryKey(milvusId);
+        documentRepository.decrementChunkCount(docId);
+        return ResponseEntity.ok(Map.of("status", "ok"));
     }
 
     @PutMapping("/chunks/{milvusId}")

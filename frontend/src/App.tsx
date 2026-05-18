@@ -6,6 +6,7 @@ import KnowledgePage from '@/pages/KnowledgePage'
 import HistoryPage from '@/pages/HistoryPage'
 import StatusPage from '@/pages/StatusPage'
 import SettingsPage from '@/pages/SettingsPage'
+import ChunkPage from '@/pages/ChunkPage'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:sessionId" element={<ChatPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/knowledge/:docId/chunks" element={<ChunkPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/status" element={<StatusPage />} />
           <Route path="/settings" element={<SettingsPage />} />

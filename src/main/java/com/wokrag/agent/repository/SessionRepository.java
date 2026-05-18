@@ -70,12 +70,12 @@ public class SessionRepository {
 
     public List<Map<String, Object>> searchByKeyword(String keyword) {
         return jdbc.queryForList(
-                "SELECT DISTINCT s.session_id, s.title, s.created_at, " +
+                "SELECT DISTINCT s.session_id, s.title, m.created_at, " +
                 "SUBSTR(m.content, MAX(1, INSTR(m.content, ?) - 20), 60) AS matched_preview " +
                 "FROM sessions s " +
                 "JOIN messages m ON s.session_id = m.session_id " +
                 "WHERE m.content LIKE '%' || ? || '%' " +
-                "ORDER BY s.last_active_at DESC " +
+                "ORDER BY m.created_at DESC " +
                 "LIMIT 20",
                 keyword, keyword
         );

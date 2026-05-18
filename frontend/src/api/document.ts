@@ -71,3 +71,9 @@ export async function addChunk(docId: string, text: string): Promise<void> {
     body: JSON.stringify({ text }),
   })
 }
+
+export async function deleteChunk(milvusId: number, docId: string): Promise<void> {
+  await apiFetch(`/api/documents/chunks/${milvusId}?docId=${encodeURIComponent(docId)}`, {
+    method: 'DELETE',
+  })
+}

@@ -105,12 +105,12 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`flex flex-col h-screen border-r border-border bg-muted/50 transition-all duration-300 z-50 ${
+        className={`flex flex-col h-screen border-r border-border bg-muted/50 transition-all duration-300 z-50 overflow-hidden ${
           collapsed ? 'w-16' : 'w-64'
         } ${isMobile && collapsed ? '-translate-x-full' : ''}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-border">
+        <div className={`flex items-center p-3 border-b border-border ${collapsed ? 'justify-center' : 'justify-between'}`}>
           {!collapsed && (
             <span className="text-sm font-semibold text-foreground truncate">{settings.sidebarTitle || 'Wok RAG Agent'}</span>
           )}
@@ -137,34 +137,70 @@ export default function Sidebar() {
 
         {/* Session List */}
         {!collapsed && (
-          <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {/* Search input */}
-            <div className="relative mb-2">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索聊天记录..."
-                className="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X size={12} />
-                </button>
-              )}
+            <div className="px-2 pt-2 pb-2 shrink-0">
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="搜索聊天记录..."
+                  className="w-full pl-8 pr-8 py-1.5 text-xs rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Search results or normal list */}
-            {searchQuery.trim() ? (
-              isSearching ? (
+            <div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-0.5 pb-2">
+              {!searchQuery.trim() && (
+                sessions.length === 0 ? (
+                  <div className="p-3 text-muted-foreground text-xs text-center">暂无会话</div>
+                ) : (
+                  sessions.map((session) => (
+                    <button
+                      key={session.sessionId}
+                      onClick={() => navigate(`/chat/${session.sessionId}`)}
+                      className={`flex items-center justify-between w-full p-2 rounded-lg text-sm text-left hover:bg-accent transition-colors group ${
+                        currentSessionId === session.sessionId ? 'bg-accent' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MessageSquare size={16} className="shrink-0 text-muted-foreground" />
+                        <span className="truncate text-foreground">{session.title}</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void handleDeleteSession(session.sessionId)
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </button>
+                  ))
+                )
+              )}
+
+              {searchQuery.trim() && isSearching && (
                 <div className="p-3 text-muted-foreground text-xs text-center">搜索中...</div>
-              ) : searchResults.length === 0 ? (
+              )}
+
+              {searchQuery.trim() && !isSearching && searchResults.length === 0 && (
                 <div className="p-3 text-muted-foreground text-xs text-center">无匹配结果</div>
-              ) : (
+              )}
+
+              {searchQuery.trim() && !isSearching && searchResults.length > 0 && (
                 searchResults.map((result) => (
                   <button
                     key={result.sessionId}
@@ -178,36 +214,8 @@ export default function Sidebar() {
                     <span className="truncate text-muted-foreground text-xs mt-0.5">{result.matchedPreview}</span>
                   </button>
                 ))
-              )
-            ) : (
-              sessions.length === 0 ? (
-                <div className="p-3 text-muted-foreground text-xs text-center">暂无会话</div>
-              ) : (
-                sessions.map((session) => (
-                  <button
-                    key={session.sessionId}
-                    onClick={() => navigate(`/chat/${session.sessionId}`)}
-                    className={`flex items-center justify-between w-full p-2 rounded-lg text-sm text-left hover:bg-accent transition-colors group ${
-                      currentSessionId === session.sessionId ? 'bg-accent' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <MessageSquare size={16} className="shrink-0 text-muted-foreground" />
-                      <span className="truncate text-foreground">{session.title}</span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void handleDeleteSession(session.sessionId)
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </button>
-                ))
-              )
-            )}
+              )}
+            </div>
           </div>
         )}
 

@@ -21,7 +21,7 @@ public class FileStorageService {
         try {
             Files.createDirectories(storageRoot);
         } catch (IOException e) {
-            throw new RagException("Failed to create storage directory: " + storageRoot, e);
+            throw new RagException("Failed to create storage directory: " + storageRoot, e.getMessage());
         }
     }
 
@@ -34,7 +34,7 @@ public class FileStorageService {
             log.info("Stored file: {}", filePath);
             return docId + "/" + fileName;
         } catch (IOException e) {
-            throw new RagException("Failed to store file for docId: " + docId, e);
+            throw new RagException("Failed to store file for docId: " + docId, e.getMessage());
         }
     }
 

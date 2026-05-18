@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { DocumentInfo } from '@/types'
 import { getDocuments, uploadDocument, deleteDocument } from '@/api/document'
 import UploadDialog from '@/components/common/UploadDialog'
@@ -16,16 +17,13 @@ import {
 } from '@/components/ui/table'
 import { Database, Trash2, Upload, Search, FileText, Download, Eye, Layers } from 'lucide-react'
 import { downloadDocument, getPreviewUrl } from '@/api/document'
-import ChunkManagerDialog from '@/components/common/ChunkManagerDialog'
 
 export default function KnowledgePage() {
   const [documents, setDocuments] = useState<DocumentInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showUpload, setShowUpload] = useState(false)
-  const [chunkDialog, setChunkDialog] = useState<{ open: boolean; docId: string; docName: string }>({
-    open: false, docId: '', docName: '',
-  })
+  const navigate = useNavigate()
   const { confirm } = useConfirm()
 
   const filteredDocs = useMemo(() => {
@@ -126,40 +124,41 @@ export default function KnowledgePage() {
                       {new Date(doc.uploadTime).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setChunkDialog({ open: true, docId: doc.id, docName: doc.name })}
-                        title="查看切片"
-                      >
-                        <Layers size={16} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => downloadDocument(doc.id)}
-                        title="下载"
-                      >
-                        <Download size={16} />
-                      </Button>
-                      {doc.name.toLowerCase().endsWith('.pdf') && (
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => navigate(`/knowledge/${doc.id}/chunks`, { state: { docName: doc.name } })}
+                          title="查看切片"
+                        >
+                          <Layers size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => downloadDocument(doc.id)}
+                          title="下载"
+                        >
+                          <Download size={16} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={!doc.name.toLowerCase().endsWith('.pdf')}
                           onClick={() => window.open(getPreviewUrl(doc.id), '_blank')}
-                          title="预览"
+                          title={doc.name.toLowerCase().endsWith('.pdf') ? "预览" : "暂不支持预览"}
                         >
                           <Eye size={16} />
                         </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => void handleDelete(doc)}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => void handleDelete(doc)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -173,13 +172,6 @@ export default function KnowledgePage() {
         open={showUpload}
         onClose={() => setShowUpload(false)}
         onUpload={(file, source) => void handleUpload(file, source)}
-      />
-
-      <ChunkManagerDialog
-        open={chunkDialog.open}
-        onClose={() => setChunkDialog({ ...chunkDialog, open: false })}
-        docId={chunkDialog.docId}
-        docName={chunkDialog.docName}
       />
     </div>
   )

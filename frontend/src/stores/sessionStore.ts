@@ -8,6 +8,7 @@ interface SessionState {
   loading: boolean
   searchResults: SearchResult[]
   isSearching: boolean
+  searchKeyword: string
   fetchSessions: () => Promise<void>
   removeSession: (sessionId: string) => Promise<void>
   addLocalSession: (sessionId: string, title: string) => void
@@ -15,11 +16,12 @@ interface SessionState {
   clearSearch: () => void
 }
 
-export const useSessionStore = create<SessionState>()((set) => ({
+export const useSessionStore = create<SessionState>()((set, get) => ({
   sessions: [],
   loading: false,
   searchResults: [],
   isSearching: false,
+  searchKeyword: '',
 
   fetchSessions: async () => {
     set({ loading: true })
@@ -62,17 +64,19 @@ export const useSessionStore = create<SessionState>()((set) => ({
 
   searchSessions: async (keyword: string) => {
     if (!keyword.trim()) {
-      set({ searchResults: [], isSearching: false })
+      set({ searchResults: [], isSearching: false, searchKeyword: '' })
       return
     }
-    set({ isSearching: true })
+    set({ isSearching: true, searchKeyword: keyword })
     try {
       const results = await apiSearchSessions(keyword)
+      if (get().searchKeyword !== keyword) return
       set({ searchResults: results })
     } finally {
+      if (get().searchKeyword !== keyword) return
       set({ isSearching: false })
     }
   },
 
-  clearSearch: () => set({ searchResults: [], isSearching: false }),
+  clearSearch: () => set({ searchResults: [], isSearching: false, searchKeyword: '' }),
 }))
