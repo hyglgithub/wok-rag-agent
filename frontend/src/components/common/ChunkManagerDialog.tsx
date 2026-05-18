@@ -110,7 +110,7 @@ export default function ChunkManagerDialog({ open, onClose, docId, docName }: Pr
                   <div className="space-y-2">
                     <Textarea
                       value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditText(e.target.value)}
                       rows={4}
                     />
                     <div className="flex gap-2 justify-end">
@@ -136,7 +136,7 @@ export default function ChunkManagerDialog({ open, onClose, docId, docName }: Pr
             <div className="space-y-2">
               <Textarea
                 value={newText}
-                onChange={(e) => setNewText(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewText(e.target.value)}
                 placeholder="输入新的切片内容..."
                 rows={3}
               />
