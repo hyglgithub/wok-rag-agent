@@ -136,7 +136,7 @@ export default function KnowledgePage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => downloadDocument(doc.id)}
+                          onClick={() => downloadDocument(doc.id, doc.name).catch(() => toast.error('下载失败'))}
                           title="下载"
                         >
                           <Download size={16} />

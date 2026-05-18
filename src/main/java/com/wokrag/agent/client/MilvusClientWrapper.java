@@ -9,6 +9,7 @@ import io.milvus.v2.common.IndexParam;
 import io.milvus.v2.service.collection.request.AddFieldReq;
 import io.milvus.v2.service.collection.request.CreateCollectionReq;
 import io.milvus.v2.service.collection.request.HasCollectionReq;
+import io.milvus.v2.service.utility.request.FlushReq;
 import io.milvus.v2.service.collection.request.LoadCollectionReq;
 import io.milvus.v2.service.index.request.CreateIndexReq;
 import io.milvus.v2.service.vector.request.DeleteReq;
@@ -165,6 +166,9 @@ public class MilvusClientWrapper {
                     .collectionName(config.getCollectionName())
                     .data(jsonRows)
                     .build());
+            client.flush(FlushReq.builder()
+                    .collectionNames(List.of(config.getCollectionName()))
+                    .build());
             return resp.getInsertCnt();
         } catch (Exception e) {
             throw new RagException.RetrievalException("Failed to insert data", e);
@@ -208,7 +212,7 @@ public class MilvusClientWrapper {
             QueryResp resp = client.query(QueryReq.builder()
                     .collectionName(config.getCollectionName())
                     .filter(expr)
-                    .outputFields(List.of("id", "chunk_text", "doc_id", "source"))
+                    .outputFields(List.of("id", "chunk_text", "doc_id", "source", "source_url"))
                     .build());
             return resp.getQueryResults();
         } catch (Exception e) {
@@ -229,21 +233,19 @@ public class MilvusClientWrapper {
         }
     }
 
-    public Map<String, Object> getByPrimaryKey(long id) {
+    public Map<String, Object> queryByPrimaryKey(long id) {
         try {
-            String expr = "id == " + id;
             QueryResp resp = client.query(QueryReq.builder()
                     .collectionName(config.getCollectionName())
-                    .filter(expr)
-                    .outputFields(List.of("chunk_text", "text_dense", "doc_id", "source", "source_url"))
+                    .ids(List.of(id))
+                    .outputFields(List.of("id", "chunk_text", "doc_id", "source", "source_url"))
                     .build());
-            
-            List<QueryResp.QueryResult> results = resp.getQueryResults();
-            if (results.isEmpty()) {
-                throw new RagException.RetrievalException("Chunk not found with id=" + id);
+            if (resp.getQueryResults().isEmpty()) {
+                throw new RagException.RetrievalException("Chunk not found: id=" + id, null);
             }
-            
-            return results.get(0).getEntity();
+            return resp.getQueryResults().get(0).getEntity();
+        } catch (RagException.RetrievalException e) {
+            throw e;
         } catch (Exception e) {
             throw new RagException.RetrievalException("Failed to query chunk id=" + id, e);
         }
@@ -251,23 +253,22 @@ public class MilvusClientWrapper {
 
     public void updateByPrimaryKey(long id, String chunkText, float[] vector) {
         try {
-            // 将 float[] 转换为 List<Float>
-            List<Float> vectorList = new ArrayList<>(vector.length);
-            for (float v : vector) {
-                vectorList.add(v);
-            }
-            
-            // 构建完整的新记录
-            Map<String, Object> newRow = new HashMap<>();
-            newRow.put("id", id);
-            newRow.put("chunk_text", chunkText);
-            newRow.put("text_dense", vectorList);
-            
-            // 直接 upsert (Milvus 内部会处理 delete+insert)
-            JsonObject jsonRow = gson.toJsonTree(newRow).getAsJsonObject();
+            Map<String, Object> existing = queryByPrimaryKey(id);
+
+            JsonObject row = new JsonObject();
+            row.addProperty("id", id);
+            row.addProperty("chunk_text", chunkText);
+            row.add("text_dense", gson.toJsonTree(vector));
+            row.addProperty("doc_id", String.valueOf(existing.get("doc_id")));
+            row.addProperty("source", String.valueOf(existing.get("source")));
+            row.addProperty("source_url", String.valueOf(existing.getOrDefault("source_url", "")));
+
             client.upsert(UpsertReq.builder()
                     .collectionName(config.getCollectionName())
-                    .data(List.of(jsonRow))
+                    .data(List.of(row))
+                    .build());
+            client.flush(FlushReq.builder()
+                    .collectionNames(List.of(config.getCollectionName()))
                     .build());
             log.info("Updated Milvus chunk id={}", id);
         } catch (Exception e) {

@@ -67,7 +67,7 @@ export interface Settings {
 }
 
 export interface ChunkInfo {
-  milvusId: number
+  milvusId: string
   chunkText: string
   chunkIndex: number
   source: string

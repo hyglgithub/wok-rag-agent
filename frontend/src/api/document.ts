@@ -41,9 +41,21 @@ export async function deleteDocument(docId: string): Promise<void> {
   await apiFetch(`/api/documents/${docId}`, { method: 'DELETE' })
 }
 
-export function downloadDocument(docId: string) {
+export async function downloadDocument(docId: string, filename: string) {
   const baseUrl = useSettingsStore.getState().settings.apiUrl
-  window.open(`${baseUrl}/api/documents/${docId}/download`, '_blank')
+  const response = await fetch(`${baseUrl}/api/documents/${docId}/download`)
+
+  if (!response.ok) throw new Error(`Download failed: ${response.status}`)
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 export function getPreviewUrl(docId: string): string {
@@ -56,7 +68,7 @@ export async function getDocumentChunks(docId: string): Promise<ChunkInfo[]> {
   return res.chunks
 }
 
-export async function updateChunk(milvusId: number, text: string): Promise<void> {
+export async function updateChunk(milvusId: string, text: string): Promise<void> {
   await apiFetch(`/api/documents/chunks/${milvusId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -72,7 +84,7 @@ export async function addChunk(docId: string, text: string): Promise<void> {
   })
 }
 
-export async function deleteChunk(milvusId: number, docId: string): Promise<void> {
+export async function deleteChunk(milvusId: string, docId: string): Promise<void> {
   await apiFetch(`/api/documents/chunks/${milvusId}?docId=${encodeURIComponent(docId)}`, {
     method: 'DELETE',
   })

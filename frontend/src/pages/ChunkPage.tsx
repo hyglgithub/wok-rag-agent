@@ -117,7 +117,7 @@ export default function ChunkPage() {
     }
   }
 
-  async function handleDeleteChunk(milvusId: number) {
+  async function handleDeleteChunk(milvusId: string) {
     const confirmed = await confirm({
       title: '删除切片',
       description: '确定删除此切片？删除后向量数据也将被清除。',
@@ -137,6 +137,26 @@ export default function ChunkPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-4xl mx-auto p-6">
+        {/* Floating sticky bar - always in DOM, visible only when header is scrolled away */}
+        <div className={`sticky top-0 z-40 -mx-6 -mt-6 px-6 py-3 flex items-center justify-between ${headerVisible ? 'pointer-events-none' : ''}`}>
+          <Button
+            variant="outline"
+            size="icon"
+            className={`rounded-full w-10 h-10 shadow-lg bg-background transition-opacity ${headerVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            onClick={() => navigate('/knowledge')}
+          >
+            <ArrowLeft size={18} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className={`rounded-full w-10 h-10 shadow-lg bg-background transition-opacity ${headerVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            onClick={openAddDialog}
+          >
+            <Plus size={18} />
+          </Button>
+        </div>
+
         {/* Header */}
         <div ref={headerRef} className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge')}>
@@ -204,31 +224,9 @@ export default function ChunkPage() {
         )}
       </div>
 
-      {/* Floating buttons when header is scrolled out of view */}
-      {!headerVisible && !loading && (
-        <>
-          <Button
-            variant="outline"
-            size="icon"
-            className="fixed top-4 left-4 z-40 rounded-full w-10 h-10 shadow-lg bg-background"
-            onClick={() => navigate('/knowledge')}
-          >
-            <ArrowLeft size={18} />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="fixed top-4 right-4 z-40 rounded-full w-10 h-10 shadow-lg bg-background"
-            onClick={openAddDialog}
-          >
-            <Plus size={18} />
-          </Button>
-        </>
-      )}
-
       {/* Edit / Add Dialog */}
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && closeDialog()}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{dialog?.mode === 'edit' ? '编辑切片' : '添加切片'}</DialogTitle>
           </DialogHeader>
@@ -236,7 +234,7 @@ export default function ChunkPage() {
             value={dialogText}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDialogText(e.target.value)}
             placeholder="输入切片内容..."
-            rows={6}
+            rows={12}
             autoFocus
           />
           <DialogFooter>

@@ -69,11 +69,36 @@ Tools implement `ToolHandler` interface (`getDefinition()` + `execute()`), regis
 
 ## API Endpoints
 
+### RAG (`RagController`, `StreamController`)
+
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/rag/query` | Synchronous RAG query (accepts `sessionId`) |
 | POST | `/api/rag/stream` | SSE streaming RAG query |
 | GET | `/api/rag/health` | Health check |
+
+### Documents (`DocumentController`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/documents` | List all documents |
+| POST | `/api/documents/upload` | Upload document (multipart, triggers chunking + embedding) |
+| GET | `/api/documents/{docId}/download` | Download original file |
+| GET | `/api/documents/{docId}/preview` | Inline preview (PDF) |
+| GET | `/api/documents/{docId}/chunks` | List chunks for a document |
+| POST | `/api/documents/{docId}/chunks` | Add a new chunk (text + auto-embed) |
+| PUT | `/api/documents/chunks/{milvusId}` | Update chunk text (re-embeds) |
+| DELETE | `/api/documents/chunks/{milvusId}` | Delete single chunk (requires `docId` query param) |
+| DELETE | `/api/documents/{docId}` | Delete document + all its chunks |
+
+### Sessions (`SessionController`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/sessions` | List all sessions |
+| GET | `/api/sessions/{sessionId}/messages` | Get messages for a session |
+| GET | `/api/sessions/search?q=...` | Search chat history |
+| DELETE | `/api/sessions/{sessionId}` | Delete a session |
 
 ## Infrastructure
 
@@ -147,7 +172,8 @@ npm run lint     # ESLint
 frontend/src/
 ├── api/            # HTTP client layer (fetch wrappers)
 │   ├── client.ts   # Base fetch config (API_URL, headers)
-│   └── rag.ts      # streamRag() — POST /api/rag/stream, returns raw Response
+│   ├── rag.ts      # streamRag() — POST /api/rag/stream, returns raw Response
+│   └── document.ts # Document CRUD: upload, delete, chunks (get/add/update/delete)
 ├── components/     # Reusable UI components
 │   └── chat/       # MessageBubble, CitationCard, ChatInput
 ├── lib/

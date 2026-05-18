@@ -209,7 +209,7 @@ public class DocumentController {
             var result = results.get(i);
             Map<String, Object> chunk = new LinkedHashMap<>();
             var entity = result.getEntity();
-            chunk.put("milvusId", entity.get("id"));
+            chunk.put("milvusId", String.valueOf(entity.get("id")));
             chunk.put("chunkText", entity.get("chunk_text"));
             chunk.put("chunkIndex", i);
             chunk.put("source", entity.get("source"));
@@ -222,9 +222,9 @@ public class DocumentController {
     @DeleteMapping("/chunks/{milvusId}")
     @Operation(summary = "Delete a single chunk")
     public ResponseEntity<Map<String, String>> deleteChunk(
-            @PathVariable long milvusId,
+            @PathVariable String milvusId,
             @RequestParam String docId) {
-        milvusClient.deleteByPrimaryKey(milvusId);
+        milvusClient.deleteByPrimaryKey(Long.parseLong(milvusId));
         documentRepository.decrementChunkCount(docId);
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
@@ -232,7 +232,7 @@ public class DocumentController {
     @PutMapping("/chunks/{milvusId}")
     @Operation(summary = "Update a chunk's text and re-embed")
     public ResponseEntity<Map<String, String>> updateChunk(
-            @PathVariable long milvusId,
+            @PathVariable String milvusId,
             @RequestBody Map<String, String> body) {
         String newText = body.get("text");
         if (newText == null || newText.isBlank()) {
@@ -241,7 +241,7 @@ public class DocumentController {
 
         List<double[]> embeddings = embeddingService.embedBatch(List.of(newText));
         float[] vector = toFloatArray(embeddings.get(0));
-        milvusClient.updateByPrimaryKey(milvusId, newText, vector);
+        milvusClient.updateByPrimaryKey(Long.parseLong(milvusId), newText, vector);
 
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
