@@ -43,7 +43,7 @@ Base package: `com.wokrag.agent`. Runs on port 8080. Uses Lombok (`@Data`, `@Req
 
 1. **Session memory** — load conversation history (sliding window)
 2. **Intent classification** — `IntentClassifier` routes to one of four paths (see below)
-3. **Knowledge path**: Query rewrite → Embed → Hybrid search → Generate with function calling → Save to memory
+3. **Knowledge path**: Query rewrite → Embed → Hybrid search (dense + BM25 sparse, RRF fusion) → Rerank → Generate with function calling → Save to memory
 4. **Tool path**: Skip RAG, call `functionCallService.chatWithTools()` directly
 5. **Chitchat path**: Use LLM reply from classification call (no second LLM call); rule-based fast-path for short greetings
 6. **Clarification path**: Use LLM reply from classification call; do NOT save to session memory
@@ -53,8 +53,8 @@ Intent classification uses a hybrid approach: rule-based chitchat keywords (shor
 ### Key Service Boundaries
 
 - **`SiliconFlowClient`** — sole gateway to all SiliconFlow APIs (embed, chat, stream, rerank, tool calling). All external HTTP calls go through here via OkHttp.
-- **`MilvusClientWrapper`** — sole gateway to Milvus. Auto-creates collection with HNSW index on startup.
-- **`SessionMemoryService`** — in-memory session store (`ConcurrentHashMap`). `SummaryMemoryService` implements token-threshold compression: when total tokens exceed `memory.tokenThreshold`, older messages are summarized via LLM and evicted, keeping only recent rounds.
+- **`MilvusClientWrapper`** — sole gateway to Milvus. Auto-creates collection with HNSW (dense) + SPARSE_INVERTED_INDEX (BM25) indexes on startup. Provides both `search()` (dense vector) and `bm25Search()` (sparse BM25 via Milvus built-in function).
+- **`SessionMemoryService`** — sessions and messages persisted in SQLite (`data/wok-rag.db`, tables: `sessions`, `messages`, `documents`). `SummaryMemoryService` implements token-threshold compression: when total tokens exceed `memory.tokenThreshold`, older messages are summarized via LLM and evicted, keeping only recent rounds.
 - **`FunctionCallService`** — 2-round tool calling: send tool definitions → execute returned calls → send results back to LLM.
 
 ### Tool Calling Pattern
@@ -62,6 +62,12 @@ Intent classification uses a hybrid approach: rule-based chitchat keywords (shor
 Tools implement `ToolHandler` interface (`getDefinition()` + `execute()`), registered via `ToolRegistry` via `@PostConstruct`. Three tools registered: `SearchKnowledgeBaseTool` (calls `RagPipeline.executeWithoutTools()` to avoid recursion), `GetUserAnnualLeaveTool` (mock HR data), `GetOrderStatusTool` (mock logistics data).
 
 `FunctionCallService.chatWithTools()` checks `!config.isEnabled()` — when `enabled` is `false`, tool calling is skipped (falls back to plain chat). With the default `tool.enabled: true`, tool calling is active.
+
+### Document Chunking
+
+`ChunkService` dispatches between two chunking strategies based on MIME type:
+- **Markdown** (`text/markdown`, `text/x-markdown`, `text/x-web-markdown`): `TextUtil.markdownChunk()` — tree-based hierarchical splitting by heading level (h1→h2→h3→h4). Each chunk carries all parent headings as prefix. Content under a heading is never split mid-sentence.
+- **All other types**: `TextUtil.recursiveChunk()` — recursive character splitting with separators (`\n\n`, `\n`, `。`, `.`, `!`, `?`).
 
 ### Exception Model
 
@@ -102,7 +108,7 @@ Tools implement `ToolHandler` interface (`getDefinition()` + `execute()`), regis
 
 ## Infrastructure
 
-`docker-compose.yml` starts: Milvus 2.6.6 (port 19530), etcd, RustFS (S3-compatible), Attu web UI (port 8000), and the application itself (port 8080, `prod` profile).
+`docker-compose.yml` starts: Milvus 2.6.6 (port 19530), etcd, RustFS (S3-compatible object storage, replacing MinIO, ports 9000/9001), Attu web UI (port 8000), and the application itself (port 8080, `prod` profile). Milvus config references `MINIO_*` env vars pointing to RustFS (S3-compatible API).
 
 ```bash
 # Full stack (Milvus + app)
@@ -116,7 +122,15 @@ docker-compose up -d
 
 ### Milvus Collection Schema
 
-Auto-created on startup (`MilvusClientWrapper`): fields are `id` (Int64 PK, auto), `chunk_text` (VarChar 8192), `text_dense` (FloatVector 4096-dim, HNSW/COSINE), `doc_id` (VarChar 64), `source` (VarChar 256), `source_url` (VarChar 512).
+Auto-created on startup (`MilvusClientWrapper`): fields are `id` (Int64 PK, auto), `chunk_text` (VarChar 8192, analyzer enabled), `text_dense` (FloatVector 4096-dim, HNSW/COSINE), `text_sparse` (SparseFloatVector, SPARSE_INVERTED_INDEX/BM25 via built-in `bm25_fn` function), `doc_id` (VarChar 64), `source` (VarChar 256), `source_url` (VarChar 512).
+
+### Hybrid Search Pipeline
+
+`HybridSearchService` performs dual recall:
+1. **Dense recall** — `milvusService.search()` with embedding vector, top-k = `rag.denseRecallTopK` (default 20)
+2. **Sparse BM25 recall** — `milvusService.bm25Search()` with raw query text, top-k = `rag.sparseRecallTopK` (default 20)
+3. **RRF fusion** — Reciprocal Rank Fusion with `rag.rrfK` (default 60)
+4. **Rerank** — `RerankerService.rerank()` via SiliconFlow reranker API, returns top `rag.topK` (default 8) results
 
 ## Production Features
 
@@ -204,7 +218,7 @@ The chat uses POST-based SSE (not `EventSource`, which only supports GET). The f
 Nine `@ConfigurationProperties` classes under `config/`:
 - `siliconflow.*` — API key, base URL, model names
 - `milvus.*` — host, port, collection name, vector dimension
-- `rag.*` — chunk size/overlap, top-k, RRF parameters
+- `rag.*` — chunk size/overlap, top-k, denseRecallTopK, sparseRecallTopK, rrfK
 - `memory.*` — strategy, maxRounds, tokenThreshold, sessionTimeoutMinutes
 - `rewrite.*` — enabled flag, model name
 - `tool.*` — enabled flag, model name
