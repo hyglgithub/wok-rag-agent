@@ -12,7 +12,13 @@ import java.util.UUID;
 public class ChunkService {
 
     public List<Chunk> chunkText(String text, int chunkSize, int overlap, String source) {
-        List<String> textChunks = TextUtil.recursiveChunk(text, chunkSize, overlap);
+        return chunkText(text, chunkSize, overlap, source, null);
+    }
+
+    public List<Chunk> chunkText(String text, int chunkSize, int overlap, String source, String mimeType) {
+        List<String> textChunks = TextUtil.isMarkdown(mimeType)
+                ? TextUtil.markdownChunk(text, chunkSize, overlap)
+                : TextUtil.recursiveChunk(text, chunkSize, overlap);
         List<Chunk> chunks = new ArrayList<>();
 
         for (int i = 0; i < textChunks.size(); i++) {

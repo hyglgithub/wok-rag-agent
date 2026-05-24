@@ -68,7 +68,7 @@ public class DocumentController {
         String docId = UUID.randomUUID().toString();
         String fileName = file.getOriginalFilename();
         if (source == null || source.isEmpty()) {
-            source = fileName;
+            source = "用户上传";
         }
 
         log.info("Uploading document: {} (docId={})", fileName, docId);
@@ -112,7 +112,8 @@ public class DocumentController {
                 parseResult.getContent(),
                 ragConfig.getChunkSize(),
                 ragConfig.getChunkOverlap(),
-                source
+                source,
+                parseResult.getMimeType()
         );
 
         if (chunks.isEmpty()) {
@@ -127,6 +128,7 @@ public class DocumentController {
         List<double[]> embeddings = embeddingService.embedBatch(texts);
 
         // Step 4: Insert into Milvus
+        String sourceUrl = "/knowledge/" + docId + "/chunks";
         List<Map<String, Object>> rows = new ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {
             Chunk chunk = chunks.get(i);
@@ -134,8 +136,8 @@ public class DocumentController {
             row.put("chunk_text", chunk.getContent());
             row.put("text_dense", embeddings.get(i));
             row.put("doc_id", docId);
-            row.put("source", source);
-            row.put("source_url", "");
+            row.put("source", fileName);
+            row.put("source_url", sourceUrl);
             rows.add(row);
         }
         milvusClient.insert(rows);
@@ -174,12 +176,12 @@ public class DocumentController {
         if (filePath == null || filePath.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        String[] parts = filePath.split("/", 2);
-        Resource resource = fileStorageService.load(parts[0], parts[1]);
+        Resource resource = fileStorageService.load(filePath);
+        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + parts[1] + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
                 .body(resource);
     }
 
@@ -190,12 +192,12 @@ public class DocumentController {
         if (filePath == null || filePath.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        String[] parts = filePath.split("/", 2);
-        Resource resource = fileStorageService.load(parts[0], parts[1]);
+        Resource resource = fileStorageService.load(filePath);
+        String fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + parts[1] + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"")
                 .body(resource);
     }
 
@@ -266,7 +268,7 @@ public class DocumentController {
         row.put("text_dense", vector);
         row.put("doc_id", docId);
         row.put("source", source);
-        row.put("source_url", "");
+        row.put("source_url", "/knowledge/" + docId + "/chunks");
         milvusClient.insert(List.of(row));
 
         documentRepository.incrementChunkCount(docId);
@@ -283,7 +285,10 @@ public class DocumentController {
         milvusClient.deleteByDocId(docId);
 
         // Delete stored files
-        fileStorageService.delete(docId);
+        String filePath = documentRepository.findFilePath(docId);
+        if (filePath != null && !filePath.isEmpty()) {
+            fileStorageService.delete(filePath);
+        }
 
         // Delete from SQLite
         documentRepository.delete(docId);
