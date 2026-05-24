@@ -51,5 +51,8 @@ desktop.ini
 ### Data ###
 data/
 
+### Build artifacts ###
+frontend/io/
+
 ### Claude ###
 .claude/
