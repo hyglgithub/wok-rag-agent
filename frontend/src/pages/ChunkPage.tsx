@@ -323,8 +323,10 @@ export default function ChunkPage() {
             .chunk-nav::-webkit-scrollbar { display: none; }
             .chunk-nav:hover {
               width: 240px;
-              background: #ffffff;
-              box-shadow: -2px 0 10px rgba(0,0,0,0.08);
+              background: var(--background);
+              box-shadow: -2px 0 10px rgba(0,0,0,0.15);
+              border-left: 1px solid var(--border);
+              border-radius: 8px 0 0 8px;
               padding: 0;
               box-sizing: border-box;
             }
@@ -345,8 +347,8 @@ export default function ChunkPage() {
               line-height: 22px;
               text-align: center;
               border-radius: 4px;
-              background: #e5e7eb;
-              color: #666;
+              background: var(--muted);
+              color: var(--muted-foreground);
               font-size: 12px;
               font-weight: 500;
               flex-shrink: 0;
@@ -357,8 +359,8 @@ export default function ChunkPage() {
               z-index: 10;
             }
             .chunk-nav-item.active .chunk-nav-index {
-              background: #0070E0;
-              color: #fff;
+              background: var(--primary);
+              color: var(--primary-foreground);
               transform: scale(1.08);
             }
             .chunk-nav-text {
@@ -366,7 +368,7 @@ export default function ChunkPage() {
               right: 42px;
               width: 165px;
               font-size: 13px;
-              color: #666;
+              color: var(--muted-foreground);
               opacity: 0;
               white-space: nowrap;
               overflow: hidden;
@@ -376,7 +378,7 @@ export default function ChunkPage() {
               pointer-events: none;
             }
             .chunk-nav-item.active .chunk-nav-text {
-              color: #0070E0;
+              color: var(--primary);
               font-weight: 500;
             }
             .chunk-nav:hover .chunk-nav-text { opacity: 1; }

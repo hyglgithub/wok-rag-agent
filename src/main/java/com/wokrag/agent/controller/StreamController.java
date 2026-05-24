@@ -65,33 +65,17 @@ public class StreamController {
                             @Override
                             public void onError(Exception e) {
                                 try {
-                                    // 发送 SSE 错误事件，避免触发全局异常处理器
-                                    String errorJson = "{\"message\":\"" + 
-                                        escapeJson(e.getMessage()) + "\"}";
                                     emitter.send(SseEmitter.event()
                                             .name("error")
-                                            .data(errorJson));
+                                            .data("{\"message\":\"" + e.getMessage() + "\"}"));
                                 } catch (IOException ex) {
-                                    log.error("Failed to send error event", ex);
-                                } finally {
-                                    emitter.completeWithError(e);
+                                    // ignore
                                 }
+                                emitter.completeWithError(e);
                             }
                         });
             } catch (Exception e) {
-                // 捕获所有异常，通过 SSE 发送错误信息
-                log.error("SSE streaming exception", e);
-                try {
-                    String errorJson = "{\"message\":\"" + 
-                        escapeJson(e.getMessage()) + "\"}";
-                    emitter.send(SseEmitter.event()
-                            .name("error")
-                            .data(errorJson));
-                } catch (IOException ex) {
-                    log.error("Failed to send error event", ex);
-                } finally {
-                    emitter.completeWithError(e);
-                }
+                emitter.completeWithError(e);
             }
         });
 
@@ -99,18 +83,6 @@ public class StreamController {
         emitter.onError(e -> log.warn("SSE error", e));
 
         return emitter;
-    }
-
-    /**
-     * 转义 JSON 字符串中的特殊字符
-     */
-    private String escapeJson(String message) {
-        if (message == null) return "";
-        return message.replace("\\", "\\\\")
-                     .replace("\"", "\\\"")
-                     .replace("\n", "\\n")
-                     .replace("\r", "\\r")
-                     .replace("\t", "\\t");
     }
 
     @Data
