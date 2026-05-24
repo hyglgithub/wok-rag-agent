@@ -34,7 +34,7 @@ docker-compose up -d
 | wok-rag-agent | 8080 | 主应用（前端 + 后端） |
 | Milvus | 19530 | 向量数据库 |
 | Attu | 8000 | Milvus 管理界面 |
-| RustFS | 9000/9001 | S3 兼容对象存储 |
+| RustFS | 9000/9001 | Milvus 底层对象存储（应用不直接使用） |
 | etcd | 2379 | Milvus 元数据存储 |
 
 ## 本地开发

@@ -3,6 +3,9 @@
 一个基于 Java 的 Agentic RAG 智能问答平台，支持文档上传、混合检索、多轮对话和工具调用。
 
 > 用 Java 做 RAG，而不是 Python——因为大多数要落地 AI 应用的公司，技术栈是 Java。
+> 自研 RAG 而非使用 Spring AI 或 LangChain4j——因为框架 API 稳定性不足、小版本易出破坏性变更且 RAG 与工具调用适配存在问题，开箱即用能力有限，而自研可实现完全可控、无升级负担与深度定制。
+
+
 
 <!-- TODO: 添加项目截图 -->
 
@@ -61,7 +64,7 @@ docker-compose up -d
 | 后端 | Java 17, Spring Boot 3.2.5, OkHttp, Gson, Lombok |
 | 前端 | React 19, TypeScript, Vite 8, Tailwind CSS v4, Zustand |
 | 向量数据库 | Milvus 2.6.6 (HNSW + BM25) |
-| 存储 | SQLite (会话), RustFS/S3 (文件) |
+| 存储 | SQLite (会话), 本地文件系统 (文件) |
 | AI 服务 | SiliconFlow (Qwen 系列模型) |
 | 部署 | Docker Compose |
 

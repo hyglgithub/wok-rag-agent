@@ -3,7 +3,7 @@ layout: home
 hero:
   name: Wok RAG Agent
   text: Agentic RAG 智能问答平台
-  tagline: 基于 Java 的企业级 RAG 解决方案，支持混合检索、多轮对话、工具调用
+  tagline: 基于 Java 的单体 RAG 解决方案，支持混合检索、多轮对话、工具调用
   actions:
     - theme: brand
       text: 快速开始
