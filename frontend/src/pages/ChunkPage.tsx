@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import type { ChunkInfo } from '@/types'
 import { getDocumentChunks, updateChunk, addChunk, deleteChunk, getDocuments } from '@/api/document'
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useConfirm } from '@/components/ui/confirm-dialog'
-import { ArrowLeft, Pencil, Plus, Loader2, Trash2, Layers } from 'lucide-react'
+import { ArrowLeft, ArrowUp, Pencil, Plus, Loader2, Trash2, Layers } from 'lucide-react'
 
 export default function ChunkPage() {
   const { docId } = useParams<{ docId: string }>()
@@ -35,19 +35,84 @@ export default function ChunkPage() {
   >(null)
   const [dialogText, setDialogText] = useState('')
 
-  // Floating buttons: visible when header is out of view
-  const headerRef = useRef<HTMLDivElement>(null)
-  const [headerVisible, setHeaderVisible] = useState(true)
+  // Scroll to top
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [showScrollTop, setShowScrollTop] = useState(false)
 
   useEffect(() => {
-    if (!headerRef.current) return
+    const container = scrollContainerRef.current
+    if (!container) return
+    function handleScroll() {
+      setShowScrollTop(container!.scrollTop > 200)
+    }
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Chunk nav state
+  const [activeChunkId, setActiveChunkId] = useState<string | null>(null)
+  const chunkRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const navContainerRef = useRef<HTMLDivElement>(null)
+  const isClicking = useRef(false)
+
+  const setChunkRef = useCallback((el: HTMLDivElement | null, milvusId: string) => {
+    if (el) {
+      chunkRefs.current.set(milvusId, el)
+    } else {
+      chunkRefs.current.delete(milvusId)
+    }
+  }, [])
+
+  // IntersectionObserver for chunk visibility tracking
+  useEffect(() => {
+    if (loading || chunks.length === 0) return
+
     const observer = new IntersectionObserver(
-      ([entry]) => setHeaderVisible(entry.isIntersecting),
-      { threshold: 0 }
+      (entries) => {
+        if (isClicking.current) return
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute('data-chunk-id')
+            if (id) setActiveChunkId(id)
+          }
+        }
+      },
+      { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
     )
-    observer.observe(headerRef.current)
+
+    const refs = chunkRefs.current
+    refs.forEach((el) => observer.observe(el))
     return () => observer.disconnect()
-  }, [loading])
+  }, [loading, chunks])
+
+  function smartScrollNav() {
+    const container = navContainerRef.current
+    if (!container) return
+    const activeIndex = chunks.findIndex(c => c.milvusId === activeChunkId)
+    if (activeIndex < 0) return
+    const items = container.querySelectorAll('.chunk-nav-item')
+    if (activeIndex === 0) {
+      container.scrollTo({ top: 0, behavior: 'smooth' })
+    } else if (activeIndex === chunks.length - 1) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+    } else {
+      items[activeIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
+  useEffect(() => {
+    if (activeChunkId) smartScrollNav()
+  }, [activeChunkId])
+
+  function scrollToChunk(milvusId: string) {
+    isClicking.current = true
+    setActiveChunkId(milvusId)
+    const el = chunkRefs.current.get(milvusId)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    setTimeout(() => { isClicking.current = false }, 800)
+  }
 
   useEffect(() => {
     if (!docId) return
@@ -57,7 +122,7 @@ export default function ChunkPage() {
     if (stateName) {
       setDocName(stateName)
       getDocumentChunks(docId)
-        .then(setChunks)
+        .then((data) => { setChunks(data); setActiveChunkId(data[0]?.milvusId || null) })
         .catch(() => {
           toast.error('加载切片失败')
           navigate('/knowledge', { replace: true })
@@ -69,6 +134,7 @@ export default function ChunkPage() {
           const doc = docs.find((d) => d.id === docId)
           setDocName(doc?.name || docId)
           setChunks(chunkData)
+          setActiveChunkId(chunkData[0]?.milvusId || null)
         })
         .catch(() => {
           toast.error('文档不存在')
@@ -135,31 +201,11 @@ export default function ChunkPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div ref={scrollContainerRef} className="h-full overflow-y-auto">
       <div className="max-w-4xl mx-auto p-6">
-        {/* Floating sticky bar - always in DOM, visible only when header is scrolled away */}
-        <div className={`sticky top-0 z-40 -mx-6 -mt-6 px-6 py-3 flex items-center justify-between ${headerVisible ? 'pointer-events-none' : ''}`}>
-          <Button
-            variant="outline"
-            size="icon"
-            className={`rounded-full w-10 h-10 shadow-lg bg-background transition-opacity ${headerVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-            onClick={() => navigate('/knowledge')}
-          >
-            <ArrowLeft size={18} />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className={`rounded-full w-10 h-10 shadow-lg bg-background transition-opacity ${headerVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-            onClick={openAddDialog}
-          >
-            <Plus size={18} />
-          </Button>
-        </div>
-
         {/* Header */}
-        <div ref={headerRef} className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge')}>
+        <div className="flex items-center gap-3 mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft size={18} />
           </Button>
           <div className="flex items-center gap-2">
@@ -195,7 +241,12 @@ export default function ChunkPage() {
         ) : (
           <div className="space-y-3">
             {chunks.map((chunk) => (
-              <div key={chunk.milvusId} className="border rounded-lg p-4">
+              <div
+                key={chunk.milvusId}
+                ref={(el) => setChunkRef(el, chunk.milvusId)}
+                data-chunk-id={chunk.milvusId}
+                className="border rounded-lg p-4"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <Badge variant="outline">#{chunk.chunkIndex + 1}</Badge>
                   <div className="flex gap-1">
@@ -248,6 +299,126 @@ export default function ChunkPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Chunk Navigation Sidebar */}
+      {!loading && chunks.length > 0 && (
+        <>
+          <style>{`
+            .chunk-nav {
+              position: fixed;
+              right: 0;
+              top: 50%;
+              transform: translateY(-50%);
+              width: 30px;
+              max-height: 70vh;
+              background: transparent;
+              transition: all 0.3s ease;
+              overflow-y: auto;
+              overflow-x: hidden;
+              z-index: 99;
+              scrollbar-width: none;
+              padding: 0 2px;
+              box-sizing: content-box;
+            }
+            .chunk-nav::-webkit-scrollbar { display: none; }
+            .chunk-nav:hover {
+              width: 240px;
+              background: #ffffff;
+              box-shadow: -2px 0 10px rgba(0,0,0,0.08);
+              padding: 0;
+              box-sizing: border-box;
+            }
+            .chunk-nav-item {
+              position: relative;
+              display: flex;
+              align-items: center;
+              justify-content: flex-end;
+              height: 38px;
+              padding: 0 2px;
+              cursor: pointer;
+              width: 100%;
+              overflow: visible;
+            }
+            .chunk-nav-index {
+              width: 26px;
+              height: 22px;
+              line-height: 22px;
+              text-align: center;
+              border-radius: 4px;
+              background: #e5e7eb;
+              color: #666;
+              font-size: 12px;
+              font-weight: 500;
+              flex-shrink: 0;
+              margin-left: 0;
+              margin-right: 0;
+              transition: all 0.2s ease;
+              position: relative;
+              z-index: 10;
+            }
+            .chunk-nav-item.active .chunk-nav-index {
+              background: #0070E0;
+              color: #fff;
+              transform: scale(1.08);
+            }
+            .chunk-nav-text {
+              position: absolute;
+              right: 42px;
+              width: 165px;
+              font-size: 13px;
+              color: #666;
+              opacity: 0;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              text-align: right;
+              transition: opacity 0.3s ease;
+              pointer-events: none;
+            }
+            .chunk-nav-item.active .chunk-nav-text {
+              color: #0070E0;
+              font-weight: 500;
+            }
+            .chunk-nav:hover .chunk-nav-text { opacity: 1; }
+            .chunk-nav:hover .chunk-nav-item { padding: 0 8px; }
+            .chunk-nav:hover .chunk-nav-index { margin-left: 8px; }
+          `}</style>
+          <div
+            ref={navContainerRef}
+            className="chunk-nav"
+            onWheel={(e) => {
+              e.stopPropagation()
+              e.currentTarget.scrollTop += e.deltaY
+            }}
+          >
+            {chunks.map((chunk) => (
+              <div
+                key={chunk.milvusId}
+                className={`chunk-nav-item ${activeChunkId === chunk.milvusId ? 'active' : ''}`}
+                onClick={() => scrollToChunk(chunk.milvusId)}
+              >
+                <span className="chunk-nav-text">
+                  {chunk.chunkText.slice(0, 20)}
+                  {chunk.chunkText.length > 20 ? '...' : ''}
+                </span>
+                <div className="chunk-nav-index">#{chunk.chunkIndex + 1}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Scroll to top button */}
+      {showScrollTop && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="fixed bottom-6 right-6 rounded-full w-10 h-10 shadow-lg z-50"
+          onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          <ArrowUp size={18} />
+        </Button>
+      )}
     </div>
   )
 }

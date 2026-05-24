@@ -47,7 +47,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Language */}
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               <Globe size={14} className="inline mr-1" />
               语言
@@ -66,7 +66,7 @@ export default function SettingsPage() {
                 English
               </Button>
             </div>
-          </div>
+          </div> */}
 
           {/* Sidebar Title */}
           <div>

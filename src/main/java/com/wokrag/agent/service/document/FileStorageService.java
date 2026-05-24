@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.time.LocalDate;
 
 @Slf4j
 @Service
@@ -27,38 +28,36 @@ public class FileStorageService {
 
     public String store(String docId, String fileName, byte[] content) {
         try {
-            Path docDir = storageRoot.resolve(docId);
-            Files.createDirectories(docDir);
-            Path filePath = docDir.resolve(fileName);
+            LocalDate today = LocalDate.now();
+            String datePath = String.format("%d/%02d/%02d", today.getYear(), today.getMonthValue(), today.getDayOfMonth());
+            Path dateDir = storageRoot.resolve(datePath);
+            Files.createDirectories(dateDir);
+            Path filePath = dateDir.resolve(fileName);
             Files.write(filePath, content, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
             log.info("Stored file: {}", filePath);
-            return docId + "/" + fileName;
+            return datePath + "/" + fileName;
         } catch (IOException e) {
             throw new RagException("Failed to store file for docId: " + docId, e.getMessage());
         }
     }
 
-    public Resource load(String docId, String fileName) {
-        Path filePath = storageRoot.resolve(docId).resolve(fileName);
-        if (!Files.exists(filePath)) {
-            throw new RagException.DocumentParseException("File not found: " + filePath);
+    public Resource load(String filePath) {
+        Path fullPath = storageRoot.resolve(filePath);
+        if (!Files.exists(fullPath)) {
+            throw new RagException.DocumentParseException("File not found: " + fullPath);
         }
-        return new FileSystemResource(filePath);
+        return new FileSystemResource(fullPath);
     }
 
-    public void delete(String docId) {
+    public void delete(String filePath) {
         try {
-            Path docDir = storageRoot.resolve(docId);
-            if (Files.exists(docDir)) {
-                Files.walk(docDir)
-                        .sorted((a, b) -> b.compareTo(a))
-                        .forEach(path -> {
-                            try { Files.delete(path); } catch (IOException ignored) {}
-                        });
-                log.info("Deleted file directory: {}", docDir);
+            Path fullPath = storageRoot.resolve(filePath);
+            if (Files.exists(fullPath)) {
+                Files.delete(fullPath);
+                log.info("Deleted file: {}", fullPath);
             }
         } catch (IOException e) {
-            log.warn("Failed to delete file directory for docId: {}", docId, e);
+            log.warn("Failed to delete file: {}", filePath, e);
         }
     }
 }

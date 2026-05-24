@@ -33,6 +33,17 @@ public class MilvusServiceImpl implements MilvusService {
 
         List<SearchResp.SearchResult> milvusResults = milvusClient.search(floatVector, topK);
 
+        return mapResults(milvusResults);
+    }
+
+    @Override
+    public List<SearchResult> bm25Search(String queryText, int topK) {
+        List<SearchResp.SearchResult> milvusResults = milvusClient.bm25Search(queryText, topK);
+
+        return mapResults(milvusResults);
+    }
+
+    private List<SearchResult> mapResults(List<SearchResp.SearchResult> milvusResults) {
         List<SearchResult> results = new ArrayList<>();
         for (SearchResp.SearchResult milvusResult : milvusResults) {
             SearchResult result = new SearchResult();

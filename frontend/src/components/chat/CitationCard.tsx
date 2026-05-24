@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { Citation } from '@/types'
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 
@@ -28,15 +29,13 @@ export default function CitationCard({ citation }: Props) {
         <div className="px-2 pb-2 border-t border-border">
           <p className="mt-2 text-muted-foreground leading-relaxed">{citation.chunkContent}</p>
           {citation.sourceUrl && (
-            <a
-              href={citation.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to={citation.sourceUrl}
               className="flex items-center gap-1 mt-2 text-primary hover:underline"
             >
               <ExternalLink size={12} />
               查看来源
-            </a>
+            </Link>
           )}
         </div>
       )}

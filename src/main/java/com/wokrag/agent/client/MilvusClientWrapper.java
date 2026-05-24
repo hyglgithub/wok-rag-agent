@@ -28,6 +28,8 @@ import org.springframework.stereotype.Component;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import io.milvus.v2.service.vector.request.data.FloatVec;
+import io.milvus.v2.service.vector.request.data.EmbeddedText;
+import io.milvus.common.clientenum.FunctionType;
 
 import java.util.*;
 
@@ -108,6 +110,18 @@ public class MilvusClientWrapper {
                 .build());
 
         schema.addField(AddFieldReq.builder()
+                .fieldName("text_sparse")
+                .dataType(DataType.SparseFloatVector)
+                .build());
+
+        schema.addFunction(CreateCollectionReq.Function.builder()
+                .name("bm25_fn")
+                .functionType(FunctionType.BM25)
+                .inputFieldNames(List.of("chunk_text"))
+                .outputFieldNames(List.of("text_sparse"))
+                .build());
+
+        schema.addField(AddFieldReq.builder()
                 .fieldName("doc_id")
                 .dataType(DataType.VarChar)
                 .maxLength(64)
@@ -137,9 +151,15 @@ public class MilvusClientWrapper {
                 .extraParams(Map.of("M", 16, "efConstruction", 256))
                 .build();
 
+        IndexParam sparseIndex = IndexParam.builder()
+                .fieldName("text_sparse")
+                .indexType(IndexParam.IndexType.SPARSE_INVERTED_INDEX)
+                .metricType(IndexParam.MetricType.BM25)
+                .build();
+
         client.createIndex(CreateIndexReq.builder()
                 .collectionName(config.getCollectionName())
-                .indexParams(List.of(denseIndex))
+                .indexParams(List.of(denseIndex, sparseIndex))
                 .build());
 
         loadCollection();
@@ -190,6 +210,23 @@ public class MilvusClientWrapper {
             return resp.getSearchResults().get(0);
         } catch (Exception e) {
             throw new RagException.RetrievalException("Search failed", e);
+        }
+    }
+
+    public List<SearchResp.SearchResult> bm25Search(String queryText, int topK) {
+        try {
+            SearchReq searchReq = SearchReq.builder()
+                    .collectionName(config.getCollectionName())
+                    .data(List.of(new EmbeddedText(queryText)))
+                    .topK(topK)
+                    .outputFields(List.of("chunk_text", "doc_id", "source", "source_url"))
+                    .annsField("text_sparse")
+                    .build();
+
+            SearchResp resp = client.search(searchReq);
+            return resp.getSearchResults().get(0);
+        } catch (Exception e) {
+            throw new RagException.RetrievalException("BM25 search failed", e);
         }
     }
 

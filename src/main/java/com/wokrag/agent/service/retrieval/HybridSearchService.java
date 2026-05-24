@@ -19,11 +19,21 @@ public class HybridSearchService {
     private final RagConfig ragConfig;
 
     public List<SearchResult> hybridSearch(double[] queryVector, String queryText) {
-        List<SearchResult> vectorResults = milvusService.search(
+        // Dense recall (vector search)
+        List<SearchResult> denseResults = milvusService.search(
                 queryVector, ragConfig.getDenseRecallTopK());
 
+        // Sparse recall (BM25 full-text search)
+        List<SearchResult> sparseResults = milvusService.bm25Search(
+                queryText, ragConfig.getSparseRecallTopK());
+
+        // RRF fusion
+        List<SearchResult> fusedResults = rrfFusion(
+                List.of(denseResults, sparseResults), ragConfig.getRrfK());
+
+        // Rerank
         List<SearchResult> rerankedResults = rerankerService.rerank(
-                queryText, vectorResults, ragConfig.getTopK());
+                queryText, fusedResults, ragConfig.getTopK());
 
         return rerankedResults;
     }

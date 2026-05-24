@@ -69,7 +69,7 @@ export default function ChatPage() {
             {isStreaming && !streamingContent && (
               <div className="flex items-center gap-2 px-4 py-2 text-muted-foreground text-sm">
                 <Loader2 size={16} className="animate-spin" />
-                <span>思考中...</span>
+                <span>检索中...</span>
               </div>
             )}
 
