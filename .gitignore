@@ -56,3 +56,8 @@ frontend/io/
 
 ### Claude ###
 .claude/
+
+### VitePress ###
+docs-site/node_modules/
+docs-site/.vitepress/dist/
+docs-site/.vitepress/cache/
