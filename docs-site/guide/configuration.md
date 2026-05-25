@@ -40,16 +40,24 @@
 | `memory.session-timeout-minutes` | `30` | 会话超时时间（分钟） |
 | `memory.summary-model` | `Qwen/Qwen2.5-7B-Instruct` | 摘要模型 |
 
+## 安全配置
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `security.api-key.enabled` | `false` | 是否启用 API 认证（生产环境自动开启） |
+
+认证开启后，后端每次启动自动生成随机 Token 并打印到日志，同时写入 `data/auth-token.txt`。前端通过登录页输入 Token 进行认证。
+
 ## 其他配置
 
 | 属性 | 默认值 | 说明 |
 |------|--------|------|
 | `rewrite.enabled` | `true` | 是否启用问题重写 |
+| `rewrite.model` | `Qwen/Qwen2.5-7B-Instruct` | 重写模型 |
 | `tool.enabled` | `true` | 是否启用工具调用 |
+| `tool.model` | `Qwen/Qwen2.5-7B-Instruct` | 工具调用模型 |
 | `intent.enabled` | `true` | 是否启用意图识别 |
+| `intent.model` | `Qwen/Qwen2.5-7B-Instruct` | 意图分类模型 |
 | `intent.confidence-threshold` | `0.5` | 意图分类置信度阈值 |
-| `security.api-key.enabled` | `false` | 是否启用 API Key 认证 |
-| `security.api-key.key` | - | API Key 值 |
-| `rate-limit.enabled` | `false` | 是否启用限流 |
-| `rate-limit.requests-per-minute` | `120` | 每分钟请求限制 |
 | `cors.allowed-origins` | `*` | CORS 允许的来源 |
+| `file.storage.path` | `data/documents/` | 文档存储路径 |

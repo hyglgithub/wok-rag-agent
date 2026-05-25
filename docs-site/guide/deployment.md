@@ -15,20 +15,19 @@ docker-compose up -d
 
 ### 生产环境配置
 
-生产环境需要修改以下配置：
-
 ```bash
-# 设置安全的 API Key
-export API_KEY=your-secure-api-key
-
 # 启动服务（自动使用 prod profile）
 docker-compose up -d
 ```
 
 生产环境下：
-- API 认证默认开启（`X-API-Key` 请求头）
-- CORS 限制为配置的域名
+- API 认证默认开启 — 后端启动时自动生成随机 Token 并打印到日志，首次访问时在登录页输入即可
+- CORS 限制为配置的域名（可通过 `CORS_ALLOWED_ORIGINS` 环境变量覆盖）
 - 日志格式为 JSON 结构化输出
+
+::: tip
+Token 每次重启都会更新。如需持久化，挂载 `data/` 目录：`-v ./data:/app/data`
+:::
 
 ### 自定义端口
 
