@@ -22,12 +22,3 @@ features:
   - icon: 🎯
     title: 意图识别路由
     details: 规则 + LLM 混合分类，知识检索、工具调用、闲聊、澄清四路智能路由
-  - icon: 🔧
-    title: 工具调用
-    details: Function Calling 支持自定义工具扩展，轻松集成外部服务
-  - icon: 📄
-    title: Markdown 感知分块
-    details: 按标题层级树形分割，保留上下文前缀，结构化文档检索更精准
-  - icon: ⚡
-    title: SSE 流式输出
-    details: 打字机效果的实时回答，支持中断生成，用户体验流畅

@@ -2,51 +2,7 @@
 
 ## 系统架构
 
-```mermaid
-graph TB
-    subgraph Client["用户浏览器"]
-        ReactSPA["React SPA<br/>(Vite + Tailwind)"]
-    end
-
-    subgraph SpringBoot["Spring Boot Application"]
-        subgraph Controllers["Controller Layer"]
-            RagController["RAG Controller"]
-            DocController["Document Controller"]
-            SessionController["Session Controller"]
-        end
-
-        subgraph Services["Service Layer"]
-            RagPipeline["RagPipeline"]
-            ChunkService["ChunkService"]
-            SessionMemory["SessionMemory"]
-        end
-
-        subgraph Clients["External Clients"]
-            SiliconFlowClient["SiliconFlow Client"]
-            MilvusClient["Milvus Client Wrapper"]
-        end
-    end
-
-    subgraph ExternalServices["外部服务"]
-        SiliconFlowAPI["SiliconFlow<br/>(LLM API)"]
-        MilvusDB["Milvus<br/>(Vector DB)"]
-    end
-
-    ReactSPA -->|HTTP / SSE| RagController
-    ReactSPA -->|HTTP / SSE| DocController
-    ReactSPA -->|HTTP / SSE| SessionController
-
-    RagController --> RagPipeline
-    DocController --> ChunkService
-    SessionController --> SessionMemory
-
-    RagPipeline --> SiliconFlowClient
-    RagPipeline --> MilvusClient
-    ChunkService --> MilvusClient
-
-    SiliconFlowClient --> SiliconFlowAPI
-    MilvusClient --> MilvusDB
-```
+![技术架构图](./architecture.assets/技术架构图.png)
 
 ## RAG Pipeline 流程
 
