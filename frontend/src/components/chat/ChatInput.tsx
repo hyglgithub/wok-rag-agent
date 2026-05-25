@@ -33,9 +33,22 @@ export default function ChatInput({ disabled, isStreaming, onSend, onStop }: Pro
   }
 
   function handleKeydown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.ctrlKey) {
+    if (e.key === 'Enter') {
       e.preventDefault()
-      handleSend()
+      if (e.ctrlKey) {
+        const el = textareaRef.current
+        if (!el) return
+        const start = el.selectionStart
+        const end = el.selectionEnd
+        const newValue = input.slice(0, start) + '\n' + input.slice(end)
+        setInput(newValue)
+        requestAnimationFrame(() => {
+          el.selectionStart = el.selectionEnd = start + 1
+          adjustHeight()
+        })
+      } else {
+        handleSend()
+      }
     }
   }
 
