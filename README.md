@@ -49,8 +49,9 @@ docker-compose up -d
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
 | `SILICONFLOW_API_KEY` | 是 | - | SiliconFlow API 密钥 |
-| `API_KEY` | 否 | `wokrag-default-key-change-me` | 生产环境 API 认证密钥 |
 | `MILVUS_URI` | 否 | `http://localhost:19530` | Milvus 连接地址 |
+
+> **认证说明**：生产环境启用认证后，后端每次启动自动生成随机 Token 并打印到日志。首次访问时在登录页输入该 Token 即可。
 
 ### 管理界面
 
