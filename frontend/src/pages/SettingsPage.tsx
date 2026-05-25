@@ -1,10 +1,19 @@
+import { useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Settings, Sun, Moon, Globe } from 'lucide-react'
+import { Settings, Sun, Moon, Globe, LogOut } from 'lucide-react'
 
 export default function SettingsPage() {
   const { settings, updateTheme, updateApiUrl, updateLanguage, updateSidebarTitle } = useSettingsStore()
+  const clearToken = useAuthStore((s) => s.clearToken)
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    clearToken()
+    navigate('/', { replace: true })
+  }
 
   return (
     <div className="h-full overflow-y-auto">
@@ -77,6 +86,16 @@ export default function SettingsPage() {
               placeholder="Wok RAG Agent"
             />
             <p className="text-xs text-muted-foreground mt-1">自定义侧边栏顶部显示的标题</p>
+          </div>
+
+          {/* Logout */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">账号</label>
+            <Button variant="destructive" onClick={handleLogout}>
+              <LogOut size={16} className="mr-2" />
+              退出登录
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1">清除本地 Token，返回登录页</p>
           </div>
         </div>
       </div>
