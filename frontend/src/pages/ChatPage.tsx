@@ -18,6 +18,7 @@ export default function ChatPage() {
   const [activeMsgId, setActiveMsgId] = useState<string | null>(null)
   const msgRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const navContainerRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const isClicking = useRef(false)
 
   const setMsgRef = useCallback((el: HTMLDivElement | null, id: string) => {
@@ -48,6 +49,23 @@ export default function ChatPage() {
     const refs = msgRefs.current
     refs.forEach((el) => observer.observe(el))
     return () => observer.disconnect()
+  }, [messages])
+
+  // Detect scroll to top/bottom boundaries
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container || messages.length === 0) return
+    function handleScroll() {
+      if (isClicking.current) return
+      const { scrollTop, scrollHeight, clientHeight } = container!
+      if (scrollTop <= 0) {
+        setActiveMsgId(messages[0].id)
+      } else if (scrollTop + clientHeight >= scrollHeight - 1) {
+        setActiveMsgId(messages[messages.length - 1].id)
+      }
+    }
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
   }, [messages])
 
   // Set initial active message
@@ -125,7 +143,7 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <MessageSquare size={48} className="mb-4 opacity-30" />
