@@ -7,13 +7,22 @@ export async function login(token: string): Promise<void> {
   })
 }
 
-export async function checkAuth(token: string): Promise<boolean> {
+export interface AuthStatus {
+  authenticated: boolean
+  authEnabled: boolean
+}
+
+export async function checkAuth(token: string | null): Promise<AuthStatus> {
   try {
-    const res = await apiFetch<{ authenticated: boolean }>('/api/auth/status', {
-      headers: { 'X-API-Key': token },
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers['X-API-Key'] = token
+    }
+    const res = await apiFetch<{ authenticated: boolean; authEnabled: boolean }>('/api/auth/status', {
+      headers,
     })
-    return res.authenticated
+    return { authenticated: res.authenticated, authEnabled: res.authEnabled }
   } catch {
-    return false
+    return { authenticated: false, authEnabled: true }
   }
 }

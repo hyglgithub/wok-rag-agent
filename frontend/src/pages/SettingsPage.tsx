@@ -3,10 +3,10 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Settings, Sun, Moon, Globe, LogOut } from 'lucide-react'
+import { Settings, Sun, Moon, LogOut } from 'lucide-react'
 
 export default function SettingsPage() {
-  const { settings, updateTheme, updateApiUrl, updateLanguage, updateSidebarTitle } = useSettingsStore()
+  const { settings, updateTheme, updateApiUrl, updateSidebarTitle } = useSettingsStore()
   const clearToken = useAuthStore((s) => s.clearToken)
   const navigate = useNavigate()
 
@@ -54,28 +54,6 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
-
-          {/* Language */}
-          {/* <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              <Globe size={14} className="inline mr-1" />
-              语言
-            </label>
-            <div className="flex gap-2">
-              <Button
-                variant={settings.language === 'zh' ? 'default' : 'outline'}
-                onClick={() => updateLanguage('zh')}
-              >
-                中文
-              </Button>
-              <Button
-                variant={settings.language === 'en' ? 'default' : 'outline'}
-                onClick={() => updateLanguage('en')}
-              >
-                English
-              </Button>
-            </div>
-          </div> */}
 
           {/* Sidebar Title */}
           <div>

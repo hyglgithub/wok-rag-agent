@@ -1,13 +1,13 @@
-# Stage 1: Build frontend
+ # Stage 1: Build frontend
 FROM node:20-alpine AS frontend-builder
 WORKDIR /build/frontend
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build backend
-FROM maven:3.9-eclipse-temurin-17 AS backend-builder
+FROM maven:3.9.6-eclipse-temurin-17 AS backend-builder
 WORKDIR /build
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
@@ -17,10 +17,11 @@ COPY --from=frontend-builder /build/frontend/dist/ src/main/resources/static/
 RUN mvn clean package -DskipTests -B
 
 # Stage 3: Runtime
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-RUN addgroup -S wokrag && adduser -S wokrag -G wokrag
+RUN groupadd -r wokrag && useradd -r -g wokrag wokrag
+
 RUN mkdir -p /app/logs /app/data/documents && chown -R wokrag:wokrag /app
 
 COPY --from=backend-builder /build/target/*.jar app.jar

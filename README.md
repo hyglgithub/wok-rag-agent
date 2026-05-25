@@ -39,9 +39,12 @@ export SILICONFLOW_API_KEY=your-siliconflow-api-key
 
 # 3. 启动所有服务
 docker-compose up -d
+
+# 4. 获取登录 Token（生产环境启用认证后需要）
+docker exec wok-rag-agent cat /app/data/auth-token.txt
 ```
 
-启动完成后访问 http://localhost:8080 即可使用。
+启动完成后访问 http://localhost:8080 即可使用。首次访问时在登录页输入上一步获取的 Token。
 
 ### 环境变量
 

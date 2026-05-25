@@ -1,5 +1,6 @@
 package com.wokrag.agent.controller;
 
+import com.wokrag.agent.config.ApiKeyConfig;
 import com.wokrag.agent.service.AuthTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthTokenService tokenService;
+    private final ApiKeyConfig apiKeyConfig;
 
     @PostMapping("/login")
     @Operation(summary = "Login with API token")
@@ -30,8 +32,11 @@ public class AuthController {
     @GetMapping("/status")
     @Operation(summary = "Check authentication status")
     public ResponseEntity<Map<String, Object>> status(@RequestHeader(value = "X-API-Key", required = false) String apiKey) {
+        if (!apiKeyConfig.isEnabled()) {
+            return ResponseEntity.ok(Map.of("authenticated", true, "authEnabled", false));
+        }
         if (tokenService.validate(apiKey)) {
-            return ResponseEntity.ok(Map.of("authenticated", true));
+            return ResponseEntity.ok(Map.of("authenticated", true, "authEnabled", true));
         }
         return ResponseEntity.status(401).body(Map.of("errorCode", "UNAUTHORIZED", "errorMessage", "Invalid or missing API key"));
     }

@@ -8,7 +8,11 @@ export default defineConfig({
   ignoreDeadLinks: [
     /localhost/,
   ],
+  head: [
+    ['link', { rel: 'icon', href: '/wok-rag-agent/logo.png' }]
+  ],
   themeConfig: {
+    logo: '/logo.png',
     nav: [
       { text: '指南', link: '/guide/quick-start' },
       { text: 'API', link: '/api/endpoints' },

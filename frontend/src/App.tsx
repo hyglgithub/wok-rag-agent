@@ -13,7 +13,7 @@ import ChunkPage from '@/pages/ChunkPage'
 import LoginPage from '@/pages/LoginPage'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, token, clearToken, setToken, loadToken } = useAuthStore()
+  const { isAuthenticated, authEnabled, clearToken, setToken, loadToken, setAuthEnabled } = useAuthStore()
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
@@ -22,14 +22,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = useAuthStore.getState().token
-    if (!stored) {
-      setChecking(false)
-      return
-    }
-
-    checkAuth(stored).then((valid) => {
-      if (valid) {
-        setToken(stored)
+    checkAuth(stored).then((status) => {
+      setAuthEnabled(status.authEnabled)
+      if (!status.authEnabled) {
+        // Auth disabled on backend — skip login
+        setChecking(false)
+        return
+      }
+      if (status.authenticated) {
+        setToken(stored!)
       } else {
         clearToken()
       }
@@ -45,7 +46,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!isAuthenticated) {
+  if (authEnabled && !isAuthenticated) {
     return <LoginPage />
   }
 

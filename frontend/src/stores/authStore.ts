@@ -5,14 +5,17 @@ const TOKEN_KEY = 'wok-rag-token'
 interface AuthState {
   token: string | null
   isAuthenticated: boolean
+  authEnabled: boolean
   setToken: (token: string) => void
   clearToken: () => void
   loadToken: () => void
+  setAuthEnabled: (enabled: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()((set) => ({
   token: null,
   isAuthenticated: false,
+  authEnabled: true,
 
   setToken: (token) => {
     if (!token) {
@@ -34,5 +37,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
     if (stored) {
       set({ token: stored, isAuthenticated: true })
     }
+  },
+
+  setAuthEnabled: (enabled) => {
+    set({ authEnabled: enabled })
   },
 }))
