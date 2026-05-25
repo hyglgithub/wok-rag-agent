@@ -33,7 +33,7 @@ export default function ChatInput({ disabled, isStreaming, onSend, onStop }: Pro
   }
 
   function handleKeydown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.ctrlKey) {
       e.preventDefault()
       handleSend()
     }
@@ -51,7 +51,7 @@ export default function ChatInput({ disabled, isStreaming, onSend, onStop }: Pro
               adjustHeight()
             }}
             onKeyDown={handleKeydown}
-            placeholder="输入你的问题... (Enter 发送, Shift+Enter 换行)"
+            placeholder="输入你的问题... (Enter 发送, Ctrl+Enter 换行)"
             rows={1}
             className="flex-1 bg-transparent resize-none px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             style={{ maxHeight: '200px' }}
