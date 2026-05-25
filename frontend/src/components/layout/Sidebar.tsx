@@ -112,7 +112,10 @@ export default function Sidebar() {
         {/* Header */}
         <div className={`flex items-center p-3 border-b border-border ${collapsed ? 'justify-center' : 'justify-between'}`}>
           {!collapsed && (
-            <span className="text-sm font-semibold text-foreground truncate">{settings.sidebarTitle || 'Wok RAG Agent'}</span>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <img src="/favicon.png" alt="Logo" className="w-6 h-6 shrink-0" />
+              <span className="text-sm font-semibold text-foreground truncate">{settings.sidebarTitle || 'Wok RAG Agent'}</span>
+            </div>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}

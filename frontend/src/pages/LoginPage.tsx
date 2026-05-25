@@ -31,9 +31,12 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <form onSubmit={handleSubmit} className="w-full max-w-sm p-6 space-y-4">
-        <h1 className="text-xl font-semibold text-center text-foreground">
-          Wok RAG Agent
-        </h1>
+        <div className="flex flex-col items-center gap-2">
+          <img src="/favicon.png" alt="Logo" className="w-12 h-12" />
+          <h1 className="text-xl font-semibold text-center text-foreground">
+            Wok RAG Agent
+          </h1>
+        </div>
         <p className="text-sm text-muted-foreground text-center">
           请输入 API Token 登录
         </p>
