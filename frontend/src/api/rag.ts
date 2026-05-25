@@ -1,5 +1,6 @@
 import { apiFetch } from './client'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { QueryRequest, RagResponse, HealthResponse, Session, SessionMessage, SearchResult } from '@/types'
 
 export function queryRag(request: QueryRequest): Promise<RagResponse> {
@@ -11,12 +12,24 @@ export function queryRag(request: QueryRequest): Promise<RagResponse> {
 
 export async function streamRag(request: QueryRequest, signal?: AbortSignal): Promise<Response> {
   const url = `${useSettingsStore.getState().settings.apiUrl}/api/rag/stream`
+  const token = useAuthStore.getState().token
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['X-API-Key'] = token
+  }
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(request),
     signal,
   })
+
+  if (response.status === 401) {
+    useAuthStore.getState().clearToken()
+    throw { errorCode: 'UNAUTHORIZED', errorMessage: 'Authentication required' }
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({
       message: `HTTP ${response.status}`,

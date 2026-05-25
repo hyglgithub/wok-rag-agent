@@ -1,6 +1,7 @@
 import { apiFetch } from './client'
 import type { DocumentInfo, ChunkInfo } from '@/types'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useAuthStore } from '@/stores/authStore'
 
 export async function getDocuments(): Promise<DocumentInfo[]> {
   try {
@@ -17,8 +18,15 @@ export async function uploadDocument(file: File, source?: string): Promise<Docum
   if (source) formData.append('source', source)
 
   const baseUrl = useSettingsStore.getState().settings.apiUrl
+  const token = useAuthStore.getState().token
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers['X-API-Key'] = token
+  }
+
   const response = await fetch(`${baseUrl}/api/documents/upload`, {
     method: 'POST',
+    headers,
     body: formData,
   })
 
@@ -43,7 +51,12 @@ export async function deleteDocument(docId: string): Promise<void> {
 
 export async function downloadDocument(docId: string, filename: string) {
   const baseUrl = useSettingsStore.getState().settings.apiUrl
-  const response = await fetch(`${baseUrl}/api/documents/${docId}/download`)
+  const token = useAuthStore.getState().token
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers['X-API-Key'] = token
+  }
+  const response = await fetch(`${baseUrl}/api/documents/${docId}/download`, { headers })
 
   if (!response.ok) throw new Error(`Download failed: ${response.status}`)
 
