@@ -97,6 +97,7 @@ services:
       - MILVUS_URI=http://milvus-standalone:19530
       - SPRING_PROFILES_ACTIVE=prod
       - API_KEY=${API_KEY:-wokrag-default-key-change-me}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8080}
     depends_on:
       standalone:
         condition: service_healthy

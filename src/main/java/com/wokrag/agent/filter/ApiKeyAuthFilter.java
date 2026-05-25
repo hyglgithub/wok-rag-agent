@@ -2,11 +2,11 @@ package com.wokrag.agent.filter;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.wokrag.agent.config.ApiKeyConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -15,12 +15,11 @@ import java.io.IOException;
 import java.util.Set;
 
 @Slf4j
-@Data
 @Component
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
-    private boolean enabled = false;
-    private String apiKey = "";
+    private final ApiKeyConfig apiKeyConfig;
+    private final Gson gson = new Gson();
 
     private static final String AUTH_HEADER = "X-API-Key";
     private static final Set<String> BYPASS_PATHS = Set.of(
@@ -31,7 +30,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             "/v3/api-docs"
     );
 
-    private final Gson gson = new Gson();
+    public ApiKeyAuthFilter(ApiKeyConfig apiKeyConfig) {
+        this.apiKeyConfig = apiKeyConfig;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -39,7 +40,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                                      FilterChain filterChain)
             throws ServletException, IOException {
 
-        if (!enabled) {
+        if (!apiKeyConfig.isEnabled()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -59,7 +60,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (!apiKey.equals(providedKey)) {
+        if (!apiKeyConfig.getKey().equals(providedKey)) {
             log.warn("Invalid API key for path: {} from {}", path, request.getRemoteAddr());
             sendError(response, HttpServletResponse.SC_FORBIDDEN, "Invalid API key.");
             return;

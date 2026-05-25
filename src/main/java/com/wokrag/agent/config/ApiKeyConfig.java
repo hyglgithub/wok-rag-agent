@@ -4,9 +4,9 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "intent")
-public class IntentConfig {
+@ConfigurationProperties(prefix = "security.api-key")
+public class ApiKeyConfig {
+    
     private boolean enabled;
-    private String model;
-    private double confidenceThreshold;
+    private String key;
 }

@@ -1,6 +1,17 @@
 用 Java 做 RAG，而不是 Python,**因为大多数要落地 AI 应用的公司，技术栈是 Java。**
 
-选择手搓 RAG，不使用SpringAI或LangChain4j
+选择手搓 RAG，不使用SpringAI或LangChain4j, 核心是 Spring AI 的 API 稳定性不足、小版本易出现破坏性变更，且 RAG 与工具调用适配存在问题，同时框架开箱即用能力仅覆盖  核心功能的小部分，自研可实现完全可控、无升级负担和深度定制，不过未来若框架在 Agent 等复杂能力上足够成熟稳定，也不排除引入。
+
+
+
+
+
+
+
+RAG 是什么？
+如何实现完全可控的 RAG 系统？
+有哪些成熟的 RAG SDK 可供选择？
+
 
 我计划开展**Agentic RAG 智能问答平台**项目开发。
 

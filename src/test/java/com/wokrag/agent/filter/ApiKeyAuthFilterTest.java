@@ -1,5 +1,6 @@
 package com.wokrag.agent.filter;
 
+import com.wokrag.agent.config.ApiKeyConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,10 +18,12 @@ class ApiKeyAuthFilterTest {
     private MockHttpServletRequest request;
     private MockHttpServletResponse response;
     private FilterChain filterChain;
+    private ApiKeyConfig apiKeyConfig;
 
     @BeforeEach
     void setUp() {
-        filter = new ApiKeyAuthFilter();
+        apiKeyConfig = new ApiKeyConfig();
+        filter = new ApiKeyAuthFilter(apiKeyConfig);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
         filterChain = (req, res) -> {};
@@ -28,8 +31,8 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void testDisabledFilterPassesThrough() throws ServletException, IOException {
-        filter.setEnabled(false);
-        filter.setApiKey("test-key");
+        apiKeyConfig.setEnabled(false);
+        apiKeyConfig.setKey("test-key");
 
         request.setRequestURI("/api/rag/query");
         filter.doFilter(request, response, filterChain);
@@ -39,8 +42,8 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void testHealthEndpointBypassesAuth() throws ServletException, IOException {
-        filter.setEnabled(true);
-        filter.setApiKey("test-key");
+        apiKeyConfig.setEnabled(true);
+        apiKeyConfig.setKey("test-key");
 
         request.setRequestURI("/actuator/health");
         filter.doFilter(request, response, filterChain);
@@ -50,8 +53,8 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void testSwaggerEndpointBypassesAuth() throws ServletException, IOException {
-        filter.setEnabled(true);
-        filter.setApiKey("test-key");
+        apiKeyConfig.setEnabled(true);
+        apiKeyConfig.setKey("test-key");
 
         request.setRequestURI("/swagger-ui.html");
         filter.doFilter(request, response, filterChain);
@@ -61,8 +64,8 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void testMissingApiKeyReturns401() throws ServletException, IOException {
-        filter.setEnabled(true);
-        filter.setApiKey("test-key");
+        apiKeyConfig.setEnabled(true);
+        apiKeyConfig.setKey("test-key");
 
         request.setRequestURI("/api/rag/query");
         filter.doFilter(request, response, filterChain);
@@ -73,8 +76,8 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void testWrongApiKeyReturns403() throws ServletException, IOException {
-        filter.setEnabled(true);
-        filter.setApiKey("correct-key");
+        apiKeyConfig.setEnabled(true);
+        apiKeyConfig.setKey("correct-key");
 
         request.setRequestURI("/api/rag/query");
         request.addHeader("X-API-Key", "wrong-key");
@@ -86,8 +89,8 @@ class ApiKeyAuthFilterTest {
 
     @Test
     void testCorrectApiKeyPassesThrough() throws ServletException, IOException {
-        filter.setEnabled(true);
-        filter.setApiKey("correct-key");
+        apiKeyConfig.setEnabled(true);
+        apiKeyConfig.setKey("correct-key");
 
         request.setRequestURI("/api/rag/query");
         request.addHeader("X-API-Key", "correct-key");

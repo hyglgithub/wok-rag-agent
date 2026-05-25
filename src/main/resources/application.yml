@@ -75,29 +75,12 @@ management:
   endpoint:
     health:
       show-details: always
-  health:
-    redis:
-      enabled: false
 
 # Security Configuration
 security:
   api-key:
     enabled: false
-    key: ${API_KEY:}
-
-# Rate Limiting
-rate-limit:
-  enabled: false
-  requests-per-minute: 120
-
-# OpenAPI / Swagger
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha
+    key: ${API_KEY}
 
 # CORS Configuration
 cors:
