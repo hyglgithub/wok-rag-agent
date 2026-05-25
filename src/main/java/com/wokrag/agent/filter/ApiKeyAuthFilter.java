@@ -3,6 +3,7 @@ package com.wokrag.agent.filter;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.wokrag.agent.config.ApiKeyConfig;
+import com.wokrag.agent.service.AuthTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,19 +20,23 @@ import java.util.Set;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private final ApiKeyConfig apiKeyConfig;
+    private final AuthTokenService authTokenService;
     private final Gson gson = new Gson();
 
     private static final String AUTH_HEADER = "X-API-Key";
-    private static final Set<String> BYPASS_PATHS = Set.of(
+    private static final Set<String> EXEMPT_PATHS = Set.of(
             "/actuator/health",
             "/actuator/info",
             "/actuator/prometheus",
             "/swagger-ui.html",
-            "/v3/api-docs"
+            "/v3/api-docs",
+            "/api/auth/login",
+            "/api/auth/status"
     );
 
-    public ApiKeyAuthFilter(ApiKeyConfig apiKeyConfig) {
+    public ApiKeyAuthFilter(ApiKeyConfig apiKeyConfig, AuthTokenService authTokenService) {
         this.apiKeyConfig = apiKeyConfig;
+        this.authTokenService = authTokenService;
     }
 
     @Override
@@ -46,34 +51,45 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         }
 
         String path = request.getRequestURI();
+        String method = request.getMethod();
 
-        if (shouldBypass(path)) {
+        // Static resources and exempt paths bypass auth
+        if (isPublicPath(path, method)) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        // Check X-API-Key header against auto-generated token
         String providedKey = request.getHeader(AUTH_HEADER);
+        if (authTokenService.validate(providedKey)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         if (providedKey == null || providedKey.isBlank()) {
             log.warn("Missing API key for path: {} from {}", path, request.getRemoteAddr());
             sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing API key. Provide X-API-Key header.");
-            return;
-        }
-
-        if (!apiKeyConfig.getKey().equals(providedKey)) {
+        } else {
             log.warn("Invalid API key for path: {} from {}", path, request.getRemoteAddr());
             sendError(response, HttpServletResponse.SC_FORBIDDEN, "Invalid API key.");
-            return;
         }
-
-        filterChain.doFilter(request, response);
     }
 
-    private boolean shouldBypass(String path) {
-        if (BYPASS_PATHS.contains(path)) {
+    private boolean isPublicPath(String path, String method) {
+        // Exact match exempt paths
+        if (EXEMPT_PATHS.contains(path)) {
             return true;
         }
-        return path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs");
+        // Swagger prefix
+        if (path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
+            return true;
+        }
+        // Static resources: root, index.html, assets, favicon
+        if (path.equals("/") || path.equals("/index.html")
+                || path.startsWith("/assets/") || path.startsWith("/favicon")) {
+            return true;
+        }
+        return false;
     }
 
     private void sendError(HttpServletResponse response, int status, String message) throws IOException {
