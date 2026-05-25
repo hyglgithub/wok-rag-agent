@@ -122,4 +122,13 @@ class ApiKeyAuthFilterTest {
         filter.doFilter(request, response, filterChain);
         assertEquals(200, response.getStatus());
     }
+
+    @Test
+    void testOptionsPreflightBypassesAuth() throws ServletException, IOException {
+        apiKeyConfig.setEnabled(true);
+        request.setRequestURI("/api/rag/sessions/test-session");
+        request.setMethod("OPTIONS");
+        filter.doFilter(request, response, filterChain);
+        assertEquals(200, response.getStatus());
+    }
 }

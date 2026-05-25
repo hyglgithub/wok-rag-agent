@@ -61,6 +61,17 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         // Check X-API-Key header against auto-generated token
         String providedKey = request.getHeader(AUTH_HEADER);
+
+        // Debug: log all headers for troubleshooting
+        if (log.isDebugEnabled()) {
+            log.debug("Request headers for path: {}", path);
+            java.util.Enumeration<String> headerNames = request.getHeaderNames();
+            while (headerNames.hasMoreElements()) {
+                String headerName = headerNames.nextElement();
+                log.debug("  Header: {} = {}", headerName, request.getHeader(headerName));
+            }
+        }
+        
         if (authTokenService.validate(providedKey)) {
             filterChain.doFilter(request, response);
             return;
@@ -76,6 +87,10 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicPath(String path, String method) {
+        // CORS preflight requests always pass through
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
         // Exact match exempt paths
         if (EXEMPT_PATHS.contains(path)) {
             return true;
