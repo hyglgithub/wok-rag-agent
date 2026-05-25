@@ -2,6 +2,7 @@ package com.wokrag.agent.controller;
 
 import com.wokrag.agent.config.ApiKeyConfig;
 import com.wokrag.agent.model.RagResponse;
+import com.wokrag.agent.service.AuthTokenService;
 import com.wokrag.agent.service.rag.RagPipeline;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,9 @@ class RagControllerTest {
 
     @MockBean
     private RagPipeline ragPipeline;
+
+    @MockBean
+    private AuthTokenService authTokenService;
 
     @Test
     void testQueryEndpoint() throws Exception {
