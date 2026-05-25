@@ -80,7 +80,6 @@ management:
 security:
   api-key:
     enabled: false
-    key: ${API_KEY}
 
 # CORS Configuration
 cors:

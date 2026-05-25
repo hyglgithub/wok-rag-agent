@@ -10,7 +10,6 @@ management:
 security:
   api-key:
     enabled: true
-    key: ${API_KEY:wokrag-default-key-change-me}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

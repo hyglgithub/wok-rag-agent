@@ -8,5 +8,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ApiKeyConfig {
     
     private boolean enabled;
-    private String key;
 }
