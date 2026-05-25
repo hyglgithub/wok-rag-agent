@@ -24,7 +24,7 @@ public class AuthController {
         if (tokenService.validate(request.getToken())) {
             return ResponseEntity.ok(Map.of("message", "OK"));
         }
-        return ResponseEntity.status(401).body(Map.of("errorMessage", "Invalid token"));
+        return ResponseEntity.status(401).body(Map.of("errorCode", "INVALID_TOKEN", "errorMessage", "Invalid token"));
     }
 
     @GetMapping("/status")
@@ -33,7 +33,7 @@ public class AuthController {
         if (tokenService.validate(apiKey)) {
             return ResponseEntity.ok(Map.of("authenticated", true));
         }
-        return ResponseEntity.status(401).body(Map.of("authenticated", false));
+        return ResponseEntity.status(401).body(Map.of("errorCode", "UNAUTHORIZED", "errorMessage", "Invalid or missing API key"));
     }
 
     @Data
