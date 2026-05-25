@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ public class AuthTokenService {
     @Setter
     private String tokenFilePath = "data/auth-token.txt";
 
-    private String token;
+    private volatile String token;
 
     @PostConstruct
     public void init() {
@@ -38,13 +39,13 @@ public class AuthTokenService {
     }
 
     public boolean validate(String provided) {
-        if (provided == null || provided.isBlank()) {
+        if (provided == null || provided.isBlank() || token == null) {
             return false;
         }
         try {
             return MessageDigest.isEqual(
-                    token.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                    provided.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    token.getBytes(StandardCharsets.UTF_8),
+                    provided.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             return false;
         }
